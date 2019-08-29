@@ -117,9 +117,12 @@ class App(QWidget):
         
         # update set point
         #file = open("../Prehistoric-Data-Acquisition/setpoint.txt", "r")
-        file = open("z:\\setpoint.txt", "r")
+        file = open("z:\\setpoint.txt", "w")
         self.set_point = np.float(file.readline())
         file.close()
+
+        print("asd")
+        print(self.set_point)
 
         self.laser_set_point.setText(str(self.set_point))
         self.laser_offset.setText(str(self.set_point))

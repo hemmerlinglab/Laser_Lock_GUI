@@ -78,10 +78,6 @@ class App(QWidget):
         self.tab_main.layout.addWidget(self.laser_set_point)
         self.tab_main.setLayout(self.tab_main.layout)
 
-        self.layout = QHBoxLayout()
-        self.layout.addWidget(self.tabs) 
-        self.setLayout(self.layout) 
- 
         self.laser_scan.valueChanged.connect(self.set_point_update)
         self.laser_scan.valueChanged.connect(self.single_step_update)
                
@@ -94,10 +90,56 @@ class App(QWidget):
         # Show widget
       
         self.read_set_point()
+### Tab 2
+        self.tab_main2 = QWidget()
+
+        self.tabs.addTab(self.tab_main2, "Laser2")
+
+        self.laser_scan2 = QSpinBox()
+        self.laser_offset2 = QLineEdit('')
+        self.laser_set_point2 = QLineEdit('')
+        self.single_step2 = QLineEdit('10')
+
+        self.tab_main2.layout = QVBoxLayout()
+        self.tab_main2.layout.addWidget(QLabel('Frequency Offset (THz)'))
+        self.tab_main2.layout.addWidget(self.laser_offset2)
+        self.tab_main2.layout.addWidget(QLabel('Frequency Shift (MHz)'))
+        self.tab_main2.layout.addWidget(self.laser_scan2)
+        self.tab_main2.layout.addWidget(QLabel('Step Size (MHz)'))
+        self.tab_main2.layout.addWidget(self.single_step2)
+        self.tab_main2.layout.addWidget(QLabel('Frequency Set Point (THz)'))
+        self.tab_main2.layout.addWidget(self.laser_set_point2)
+        self.tab_main2.setLayout(self.tab_main2.layout)
+
+        ### End laser 2
+
+        self.layout = QHBoxLayout()
+        self.layout.addWidget(self.tabs) 
+        self.setLayout(self.layout) 
+ 
+        self.laser_scan2.valueChanged.connect(self.set_point_update2)
+        self.laser_scan2.valueChanged.connect(self.single_step_update2)
+               
+        # properties
+        self.laser_offset2.text
+        self.laser_scan2.setSuffix(' MHz')
+        self.laser_scan2.setMinimum(-5000)
+        self.laser_scan2.setMaximum(5000)
+        self.laser_scan2.setSingleStep(np.int(self.single_step2.text()))
+        # Show widget
+      
+        self.read_set_point2()
+
+
+
         self.show()
 
     def single_step_update(self):
         self.laser_scan.setSingleStep(np.int(self.single_step.text()))
+        return
+
+    def single_step_update2(self):
+        self.laser_scan2.setSingleStep(np.int(self.single_step2.text()))
         return
 
     def set_point_update(self):
@@ -113,6 +155,19 @@ class App(QWidget):
 
         return
 
+    def set_point_update2(self):
+        
+        self.set_point2 = np.float(self.laser_offset2.text()) + np.float(self.laser_scan2.value())*1e-6
+        # update set point
+        #file = open("../Prehistoric-Data-Acquisition/setpoint.txt", "w")
+        file = open("z:\\setpoint2.txt", "w")
+        file.write(str(self.set_point2))
+        file.close()
+
+        self.laser_set_point2.setText(str(self.set_point2))
+
+        return
+
     def read_set_point(self):
         
         # update set point
@@ -123,6 +178,19 @@ class App(QWidget):
 
         self.laser_set_point.setText(str(self.set_point))
         self.laser_offset.setText(str(self.set_point))
+
+        return
+
+    def read_set_point2(self):
+        
+        # update set point
+        #file = open("../Prehistoric-Data-Acquisition/setpoint.txt", "r")
+        file = open("z:\\setpoint2.txt", "r")
+        self.set_point2 = np.float(file.readline())
+        file.close()
+
+        self.laser_set_point2.setText(str(self.set_point2))
+        self.laser_offset2.setText(str(self.set_point2))
 
         return
 
