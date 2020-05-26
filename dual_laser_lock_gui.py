@@ -84,8 +84,8 @@ class App(QWidget):
         # properties
         self.laser_offset.text
         self.laser_scan.setSuffix(' MHz')
-        self.laser_scan.setMinimum(-5000)
-        self.laser_scan.setMaximum(5000)
+        self.laser_scan.setMinimum(-100000)
+        self.laser_scan.setMaximum(100000)
         self.laser_scan.setSingleStep(np.int(self.single_step.text()))
         # Show widget
       
@@ -123,8 +123,8 @@ class App(QWidget):
         # properties
         self.laser_offset2.text
         self.laser_scan2.setSuffix(' MHz')
-        self.laser_scan2.setMinimum(-5000)
-        self.laser_scan2.setMaximum(5000)
+        self.laser_scan2.setMinimum(-100000)
+        self.laser_scan2.setMaximum(100000)
         self.laser_scan2.setSingleStep(np.int(self.single_step2.text()))
         # Show widget
       
