@@ -8,19 +8,14 @@ import numpy as np
 
 def send2ard(ser, voltage, chan):
 
+    # converts -10V to 10V to 0 to 4095 for 12-bit analogwrite output of Arduino
     ard_mess =  int(4095.0/20 * voltage + 4095.0/2.0)*10 + chan
     mystr = '{:05d}'.format(ard_mess).encode('utf-8')
     ser.write(mystr) # converts from unicode to bytes
 
 
 if True:
-    ###    
-        
-   # time.sleep(2)
-    ###    
-    n = 80
     serial_port  = 'COM14'; #pid lock arduino port
-
     baud_rate = 9600; #In arduino, Serial.begin(baud_rate)
 
     try:
@@ -41,26 +36,26 @@ if True:
                             timeout=1)
 
     channel = 2
-    delay = 0.05
+    delay = 0.01
 	
     wlm = WavelengthMeter()
-    time.sleep(2)
+    time.sleep(1)
     
     fib1 = Fiber('COM1')
     fib1.setchan(channel)	
     
-    time.sleep(0.005)
-    
-    
+    time.sleep(0.01)
 
     while True:
         for k in np.linspace(-10,10,100):
             print(k)
-            send2ard(ser, k, channel)
+            send2ard(ser, k, 1)
+            send2ard(ser, k, 2)
             time.sleep(delay)
         for k in np.linspace(10,-10,100):
             print(k)
-            send2ard(ser, k, channel)
+            send2ard(ser, k, 1)
+            send2ard(ser, k, 2)
             time.sleep(delay)
 
 
