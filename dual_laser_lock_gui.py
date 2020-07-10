@@ -60,7 +60,7 @@ class App(QWidget):
 
         self.tab_main = QWidget()
 
-        self.tabs.addTab(self.tab_main, "Laser")
+        self.tabs.addTab(self.tab_main, "Davos")
 
         self.laser_scan = QSpinBox()
         self.laser_offset = QLineEdit('')
@@ -93,7 +93,7 @@ class App(QWidget):
 ### Tab 2
         self.tab_main2 = QWidget()
 
-        self.tabs.addTab(self.tab_main2, "Laser2")
+        self.tabs.addTab(self.tab_main2, "Hodor")
 
         self.laser_scan2 = QSpinBox()
         self.laser_offset2 = QLineEdit('')
