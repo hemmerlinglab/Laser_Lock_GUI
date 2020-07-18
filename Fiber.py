@@ -30,7 +30,7 @@ class Fiber():
         #self.whatisyourquest()
         #print('Current Output Channel:')
         #self.whatisyourfavoritecolor()
-        self.setchan(1)
+        #self.setchan(1)
 
         self.cycling = False
 

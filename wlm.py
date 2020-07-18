@@ -4,6 +4,7 @@ Module to work with Angstrom WS7 wavelength meter
 
 import argparse
 import ctypes, os, sys, random, time
+import wlmConst
 
 class WavelengthMeter:
 
@@ -35,6 +36,26 @@ class WavelengthMeter:
         else:
             return 0
 
+    def SetExposure(self, v):
+        return self.dll.SetExposure(ctypes.c_ushort(v))
+
+    def Calibration(self, value):
+
+        laser_type = wlmConst.cOther
+        
+        unit = wlmConst.cReturnFrequency
+        channel = 1        
+        
+        if not self.debug:
+            calibration_result = self.dll.Calibration(\
+                ctypes.c_long(laser_type),\
+                ctypes.c_long(unit),\
+                ctypes.c_double(value),\
+                ctypes.c_long(channel))
+            return calibration_result
+        else:
+            return 0
+        
     def GetWavelength(self, channel=1):
         if not self.debug:
             return self.dll.GetWavelengthNum(ctypes.c_long(channel), ctypes.c_double(0))
