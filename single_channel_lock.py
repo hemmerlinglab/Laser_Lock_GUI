@@ -8,6 +8,11 @@ import threading
 import queue
 import numpy as np
 
+########################################################
+
+CALIBRATION_CHANNEL = 4 # fiber channel of HeNe laser
+
+########################################################
 
 
 def my_init():
@@ -117,21 +122,60 @@ def loop_pid(channel, ser, wlm, new_setpoint, pids, act_values):
 
 
 
-def run_pid(q_var, ser, wlm, pids):
+def do_calibration(fib, wlm, channel, calibration_frequency = 473.612512):
 
+        # set fiber switcher to calibration channel
+        fib.setchan(CALIBRATION_CHANNEL)
+
+        # set exposure time
+        wlm.SetExposure(150)
+        time.sleep(1)
+
+        # calibrate with HeNe
+        cal = wlm.Calibration(calibration_frequency)
+
+        # reset exposure time
+        wlm.SetExposure(20)
+
+        # switch back to channel
+        fib.setchan(channel)
+        time.sleep(1)
+
+        # check that calibration went ok
+
+        return
+
+
+def run_pid(q_var, ser, fib, wlm, pids):
+
+    calibrate = False
     new_setpoint = 0.0
     act_values = [0,0,0,0]
+
     while True:        
 
         try:
             var = q_var.get(block = False)
-            new_channel = var[0]            
-            new_setpoint = var[1]
+            code = var[0]
+            channel = var[1]
+
+            if code == 1:
+                calibrate = True
+                calibration_frequency = var[2]
+            else:
+                new_setpoint = var[2]
+
         except queue.Empty:            
             pass
 
-        # run PID
-        act_values = loop_pid(channel, ser, wlm, new_setpoint, pids, act_values)
+        if calibrate:
+            do_calibration(fib, wlm, channel, calibration_frequency = calibration_frequency)
+
+            calibrate = False
+        else:
+            # run PID
+            act_values = loop_pid(channel, ser, wlm, new_setpoint, pids, act_values)
+
 
 
 def run_server(q_var, sock):
@@ -144,11 +188,15 @@ def run_server(q_var, sock):
             print('connection from', client_address)
 
             # Receive the data in small chunks and retransmit it
-            #while True:
-            data = connection.recv(12)
+            
+            # data = 0,4,374.123456 = code,channel,frequency
+            # code = 0, measure
+            # code = 1, calibrate
+
+            data = connection.recv(14)
             data = str(data.decode()).split(',')
 
-            q_var.put([np.int(data[0]), np.float(data[1])])
+            q_var.put([np.int(data[0]), np.int(data[1]), np.float(data[1])])
             
         finally:
             connection.close()
@@ -159,7 +207,7 @@ def run_server(q_var, sock):
 ###################################
 
 print('Init ...')
-(wlm, fib1, ser) = my_init()
+(wlm, fib, ser) = my_init()
 
 sock = setup_server()
 
@@ -169,7 +217,7 @@ setpoint_files, pids = init_pid()
 do_calibration = False
 
 channel = 2
-fib1.setchan(channel)
+fib.setchan(channel)
 
 # Queue allows for communicating between threads
 q_var = queue.Queue()
@@ -177,51 +225,12 @@ q_var = queue.Queue()
 q_var.put([channel, 0.0])
 
 # start PID thread
-pid_thread = threading.Thread(target=run_pid, args=(q_var, ser, wlm, pids))
+pid_thread = threading.Thread(target=run_pid, args=(q_var, ser, fib, wlm, pids))
 pid_thread.start()
 
 # start socket thread
 socket_thread = threading.Thread(target=run_server, args=(q_var, sock,))
 socket_thread.start()
-
-
-
-
-
-if False:
-
-    # query socket for new setpoint
-    # run wavemeter calibration
-
-    # Wait for a connection
-    print('waiting for a connection')
-    #connection, client_address = sock.accept()
-
-    
-    if do_calibration:
-
-        fib1.setchan(4)
-        # set exposure time
-        wlm.SetExposure(150)
-        time.sleep(1)
-
-        # calibrate with HeNe
-        cal = wlm.Calibration(473.612512)
-
-        print(cal)
-
-        wlm.SetExposure(20)
-        fib1.setchan(channel)
-        time.sleep(1)
-
-        do_calibration = False
-
-
-
-
-#fib1.close()
-#ser.close()
-
 
 
 

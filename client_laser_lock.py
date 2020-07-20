@@ -14,7 +14,7 @@ sock.connect(server_address)
 try:
     
     # Send data
-    #message = '2,377.002000'
+    #message = '0,2,377.002000'
     
     message = sys.argv[1]
 
