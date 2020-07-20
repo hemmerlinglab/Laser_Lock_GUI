@@ -41,8 +41,6 @@ def my_init():
 
     return (wlm, fib1, ser)
 
-
-
 def init_pid():
 
     setpoint_files = ['setpoint.txt','setpoint2.txt','setpoint3.txt','setpoint4.txt']
@@ -58,8 +56,6 @@ def init_pid():
         pids[i] = pid
     
     return setpoint_files, pids
-
-
 
 def setup_server():
     # Create a TCP/IP socket
@@ -129,7 +125,7 @@ def run_pid(q_var, ser, wlm, pids):
 
         try:
             var = q_var.get(block = False)
-            channel = var[0]            
+            new_channel = var[0]            
             new_setpoint = var[1]
         except queue.Empty:            
             pass
@@ -187,6 +183,10 @@ pid_thread.start()
 # start socket thread
 socket_thread = threading.Thread(target=run_server, args=(q_var, sock,))
 socket_thread.start()
+
+
+
+
 
 if False:
 
