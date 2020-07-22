@@ -136,13 +136,14 @@ def do_calibration(fib, wlm, channel, calibration_frequency = 473.612512):
         fib.setchan(CALIBRATION_CHANNEL)
 
         # set exposure time
-        wlm.SetExposure(150)
+        wlm.SetExposure(200)
         time.sleep(1)
 
         # calibrate with HeNe        
         print('Calibrating wavemeter to ... ' + str(calibration_frequency))
         cal = wlm.Calibration(calibration_frequency)
         #cal = 0
+        #time.sleep(3)
 
         # reset exposure time
         wlm.SetExposure(20)
@@ -175,7 +176,7 @@ def run_pid(q_var, ser, fib, wlm, pids, channel):
             if code == 1:
                 calibrate = True
                 calibration_frequency = var[2]
-            else:                
+            elif code == 0:                
                 new_setpoint = var[2]
                 print()
                 print('New setpoint ... ' + str(new_setpoint))
@@ -186,6 +187,9 @@ def run_pid(q_var, ser, fib, wlm, pids, channel):
                     fib.setchan(channel)
                     time.sleep(1)
                     current_channel = channel
+            elif code == 2:
+                # only switch channel
+                fib.setchan(channel)
 
         except queue.Empty:            
             pass

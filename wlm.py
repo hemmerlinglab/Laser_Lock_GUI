@@ -42,6 +42,7 @@ class WavelengthMeter:
     def Calibration(self, value):
 
         laser_type = wlmConst.cOther
+        #laser_type = wlmConst.cHeNe633
         
         unit = wlmConst.cReturnFrequency
         channel = 1        

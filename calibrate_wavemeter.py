@@ -1,16 +1,20 @@
 import time
 from wlm import *
 import numpy as np
+from Fiber import *
 
-    
+fib = Fiber('COM1')
 wlm = WavelengthMeter()
 time.sleep(0.2)
     
 f = wlm.frequency
 print(f)
 
+
+fib.setchan(4)
+
 # set exposure time
-wlm.SetExposure(150)
+wlm.SetExposure(200)
 
 time.sleep(1)
 
