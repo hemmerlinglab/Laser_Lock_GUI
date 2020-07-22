@@ -104,26 +104,24 @@ def loop_pid(channel, ser, wlm, new_setpoint, pids, act_values):
         ard_mess[l] = int(4095.0/20 * control + 4095.0/2.0)*10+channel
         mystr = '{:05d}'.format(ard_mess[l]).encode('utf-8')
         ser.write(mystr) # converts from unicode to bytes        
-        
-        # print if at limits
-        feedback = control * 4095.0/20 + 4095.0/2.0     
-        #if feedback <= 0.0 or feedback >= 4095.0:
-        #if True:
+                
+        feedback = control * 4095.0/20 + 4095.0/2.0             
         str_output = "Act: {0:6.6f} - Set: {1:6.6f} - Cnt: {2:4.0f}".format(new_freq, new_setpoint, feedback)
-        #print(str_output)
-        sys.stdout.write("\r" + str_output)
-        sys.stdout.flush()
-        #time.sleep(1)
-
 
     elif new_freq == -3.0:
         act_values[l] = 'UNDER     '
+        str_output = 'UNDER'
     elif new_freq == -4.0:
         act_values[l] = 'OVER      '
+        str_output = 'OVER'
     else:
         act_values[l] = 'ERROR     '
+        str_output = 'ERROR'
 
-        time.sleep(0.001)
+    sys.stdout.write("\r" + str_output)
+    sys.stdout.flush()
+        
+        
 
     return act_values
 
