@@ -139,10 +139,10 @@ def do_calibration(fib, wlm, channel, calibration_frequency = 473.612512):
         wlm.SetExposure(150)
         time.sleep(1)
 
-        # calibrate with HeNe
-        # cal = wlm.Calibration(calibration_frequency)
-        cal = 0
+        # calibrate with HeNe        
         print('Calibrating wavemeter to ... ' + str(calibration_frequency))
+        cal = wlm.Calibration(calibration_frequency)
+        #cal = 0
 
         # reset exposure time
         wlm.SetExposure(20)
