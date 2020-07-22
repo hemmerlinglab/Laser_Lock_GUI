@@ -1,3 +1,4 @@
+import sys
 import serial
 import time
 import socket
@@ -48,7 +49,7 @@ def my_init():
 
 def init_pid():
 
-    setpoint_files = ['setpoint.txt','setpoint2.txt','setpoint3.txt','setpoint4.txt']
+    #setpoint_files = ['setpoint.txt','setpoint2.txt','setpoint3.txt','setpoint4.txt']
 
     setpoints = [0,0,0,0]
     pids = ['','','','']
@@ -60,7 +61,7 @@ def init_pid():
         pid = PID(Kps[i], Kis[i], Kds[i], setpoints[i], sample_time = 0.01, output_limits = [-10, 10])
         pids[i] = pid
     
-    return setpoint_files, pids
+    return pids
 
 def setup_server():
     # Create a TCP/IP socket
@@ -106,8 +107,14 @@ def loop_pid(channel, ser, wlm, new_setpoint, pids, act_values):
         
         # print if at limits
         feedback = control * 4095.0/20 + 4095.0/2.0     
-        if feedback <= 0.0 or feedback >= 4095.0:
-            print("{0:6.6f} : {1:6.6f}, {2:4.2f}, {3}".format(new_freq, new_setpoint, feedback, mystr))
+        #if feedback <= 0.0 or feedback >= 4095.0:
+        #if True:
+        str_output = "Act: {0:6.6f} - Set: {1:6.6f} - Cnt: {2:4.0f}".format(new_freq, new_setpoint, feedback)
+        #print(str_output)
+        sys.stdout.write("\r" + str_output)
+        sys.stdout.flush()
+        #time.sleep(1)
+
 
     elif new_freq == -3.0:
         act_values[l] = 'UNDER     '
@@ -121,12 +128,13 @@ def loop_pid(channel, ser, wlm, new_setpoint, pids, act_values):
     return act_values
 
 
-
 def do_calibration(fib, wlm, channel, calibration_frequency = 473.612512):
 
+        print()
         print('Calibrating wavemeter ...')
 
         # set fiber switcher to calibration channel
+        print('Switching to calibration channel ... ' + str(CALIBRATION_CHANNEL))
         fib.setchan(CALIBRATION_CHANNEL)
 
         # set exposure time
@@ -134,16 +142,21 @@ def do_calibration(fib, wlm, channel, calibration_frequency = 473.612512):
         time.sleep(1)
 
         # calibrate with HeNe
-        cal = wlm.Calibration(calibration_frequency)
+        # cal = wlm.Calibration(calibration_frequency)
+        cal = 0
+        print('Calibrating wavemeter to ... ' + str(calibration_frequency))
 
         # reset exposure time
         wlm.SetExposure(20)
 
         # switch back to channel
+        print('Switching back to laser channel ... ' + str(channel))
         fib.setchan(channel)
         time.sleep(1)
 
         # check that calibration went ok
+
+        print('Calibration result ... ' + str(cal))
 
         return
 
@@ -164,15 +177,17 @@ def run_pid(q_var, ser, fib, wlm, pids, channel):
             if code == 1:
                 calibrate = True
                 calibration_frequency = var[2]
-            else:
+            else:                
+                new_setpoint = var[2]
+                print()
+                print('New setpoint ... ' + str(new_setpoint))
+
                 # check if there is a switch of channels
                 if not channel == current_channel:
                     print('Switching channel to ... ' + str(channel))
                     fib.setchan(channel)
                     time.sleep(1)
                     current_channel = channel
-
-                new_setpoint = var[2]
 
         except queue.Empty:            
             pass
@@ -190,22 +205,23 @@ def run_pid(q_var, ser, fib, wlm, pids, channel):
 def run_server(q_var, sock):
     while True:
         # Wait for a connection
-        print('waiting for a connection')
+        #print('waiting for a connection')
         connection, client_address = sock.accept()
 
         try:
-            print('connection from', client_address)
+            #print('connection from', client_address)
 
             # Receive the data in small chunks and retransmit it
             
-            # data = 0,4,374.123456 = code,channel,frequency
+            # data = 0,2,374.123456 = code,channel,frequency
             # code = 0, measure
             # code = 1, calibrate
+            # for calibration channel is the channel to switch back to after the calibration took place            
 
             data = connection.recv(14)
             data = str(data.decode()).split(',')
 
-            q_var.put([np.int(data[0]), np.int(data[1]), np.float(data[1])])
+            q_var.put([np.int(data[0]), np.int(data[1]), np.float(data[2])])
             
         finally:
             connection.close()
@@ -221,9 +237,7 @@ print('Init ...')
 sock = setup_server()
 
 print('Init PID ...')
-setpoint_files, pids = init_pid()
-
-do_calibration = False
+pids = init_pid()
 
 channel = 2
 fib.setchan(channel)
