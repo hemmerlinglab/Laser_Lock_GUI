@@ -124,6 +124,8 @@ def loop_pid(channel, ser, wlm, new_setpoint, pids, act_values):
 
 def do_calibration(fib, wlm, channel, calibration_frequency = 473.612512):
 
+        print('Calibrating wavemeter ...')
+
         # set fiber switcher to calibration channel
         fib.setchan(CALIBRATION_CHANNEL)
 
@@ -145,12 +147,12 @@ def do_calibration(fib, wlm, channel, calibration_frequency = 473.612512):
 
         return
 
-
-def run_pid(q_var, ser, fib, wlm, pids):
+def run_pid(q_var, ser, fib, wlm, pids, channel):
 
     calibrate = False
     new_setpoint = 0.0
     act_values = [0,0,0,0]
+    current_channel = channel
 
     while True:        
 
@@ -163,6 +165,13 @@ def run_pid(q_var, ser, fib, wlm, pids):
                 calibrate = True
                 calibration_frequency = var[2]
             else:
+                # check if there is a switch of channels
+                if not channel == current_channel:
+                    print('Switching channel to ... ' + str(channel))
+                    fib.setchan(channel)
+                    time.sleep(1)
+                    current_channel = channel
+
                 new_setpoint = var[2]
 
         except queue.Empty:            
@@ -222,10 +231,10 @@ fib.setchan(channel)
 # Queue allows for communicating between threads
 q_var = queue.Queue()
 
-q_var.put([channel, 0.0])
+q_var.put([0, channel, 0.0])
 
 # start PID thread
-pid_thread = threading.Thread(target=run_pid, args=(q_var, ser, fib, wlm, pids))
+pid_thread = threading.Thread(target=run_pid, args=(q_var, ser, fib, wlm, pids, channel))
 pid_thread.start()
 
 # start socket thread
