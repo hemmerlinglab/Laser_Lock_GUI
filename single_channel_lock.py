@@ -53,8 +53,8 @@ def init_pid():
 
     setpoints = [0,0,0,0]
     pids = ['','','','']
-    Kps = [10,400,100,100]
-    Kis = [100,8000,100,1000]
+    Kps = [400,400,100,100]
+    Kis = [8000,8000,100,1000]
     Kds = [0,0,0,0]
 
     for i in range(len(setpoints)):
