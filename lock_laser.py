@@ -88,14 +88,14 @@ def main(stdscr):
     stdscr.addstr(0,0,'-'*n)
     stdscr.addstr(1,5,'DUAL LASER LOCK')
     stdscr.addstr(2,0,'-'*n)
-    stdscr.addstr(3,5,'Setpoint files in Z:\\')
+    stdscr.addstr(3,5,'Setpoint files in Y:\\')
     incr = 100
     stdscr.addstr(4,5,'Increment: '+str(incr)+'       ')
     stdscr.refresh()
     ###
 
     for i in range(len(chans)):
-        file = open("z:\\"+setpoint_files[i], "r")
+        file = open("y:\\"+setpoint_files[i], "r")
         setpoints[i] = file.readline().strip()
         file.close()
     pids = ['','','','']
@@ -277,7 +277,7 @@ def main(stdscr):
                 #logfile.write('l: {}  CTL: {}  SET: {}  ACT: {}\n'.format(l,format(int((ard_mess[l]-chans[l])/10),'04d'),pids[l].setpoint,act_values[l]))
                 newset = ''
                 
-                file = open("z:\\"+setpoint_files[l], "r")
+                file = open("y:\\"+setpoint_files[l], "r")
                 newset = file.readline().strip()
                 file.close()
                 try:
@@ -343,7 +343,7 @@ def main(stdscr):
         else:
             newset = ''
             l = chan_mode-1
-            file = open("z:\\"+setpoint_files[l], "r")
+            file = open("y:\\"+setpoint_files[l], "r")
             newset = file.readline().strip()
             file.close()
             try:

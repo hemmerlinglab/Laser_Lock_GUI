@@ -241,7 +241,7 @@ sock = setup_server()
 print('Init PID ...')
 pids = init_pid()
 
-channel = 2
+channel = 1
 fib.setchan(channel)
 
 # Queue allows for communicating between threads
@@ -250,13 +250,17 @@ q_var = queue.Queue()
 q_var.put([0, channel, 0.0])
 
 # start PID thread
-pid_thread = threading.Thread(target=run_pid, args=(q_var, ser, fib, wlm, pids, channel))
+pid_thread = threading.Thread(target=run_pid, args=(q_var, ser, fib, wlm, pids, channel), daemon = True)
 pid_thread.start()
 
 # start socket thread
-socket_thread = threading.Thread(target=run_server, args=(q_var, sock,))
+socket_thread = threading.Thread(target=run_server, args=(q_var, sock,), daemon = True)
 socket_thread.start()
 
+
+# keep deamons running
+while True:
+    pass
 
 
 
