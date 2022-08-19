@@ -113,7 +113,7 @@ if True:
     Kis = [3000,10000,100,1000]
     Kds = [0,0,0,0]
 
-    invert_pid = [1, -1]
+    invert_pid = [-1, -1]
     
     DAC_chans = [1,2]
 
@@ -165,6 +165,6 @@ if True:
 
 
 
-    time.sleep(0.001)
+        time.sleep(0.01)
 
 

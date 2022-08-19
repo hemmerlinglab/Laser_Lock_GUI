@@ -49,7 +49,7 @@ if True:
     while True:
         for k in np.linspace(-10,10,100):
             print(k)
-            send2ard(ser, k, 2)
+            send2ard(ser, k, 1)
             #send2ard(ser, k, 2)
             time.sleep(delay)
         #for k in np.linspace(10,-10,100):

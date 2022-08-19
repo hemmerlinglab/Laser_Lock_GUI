@@ -1,0 +1,274 @@
+import sys
+import serial
+import time
+import socket
+from simple_pid import PID
+import threading
+import queue
+import numpy as np
+
+MAX_ARDUINO_SIGNAL = 4095.0
+MAX_ARDUINO_SIGNAL_390 = 3250.0
+
+#def get_frequencies():
+
+#    return 709.07854
+
+def get_frequencies():
+
+    # Create a TCP/IP socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    # Connect the socket to the port where the server is listening
+    #server_address = ('localhost', 10000)
+    server_address = ('192.168.42.20', 62500)
+    #print('connecting to %s port %s' % server_address)
+    sock.connect(server_address)
+
+    try:
+    
+        # Send data
+        message = 'request'
+        #print('sending "%s"' % message)
+        sock.sendall(message.encode())
+
+        # Look for the response
+        amount_received = 0
+        amount_expected = len(message)
+    
+        while amount_received < amount_expected:
+            data = sock.recv(21)
+            amount_received += len(data)
+            #print('received "%s"' % data)
+
+        data = data.decode().split(',')
+        data = list(map(float,data))
+
+    finally:
+        #print('closing socket')
+        sock.close()
+
+    #print(data)
+
+    return data[0]
+
+
+def init_arduino():
+
+    serial_port  = 'COM5'; #pid lock arduino port
+
+    baud_rate = 9600; #In arduino, Serial.begin(baud_rate)
+
+    try:
+        ser = serial.Serial(serial_port, baud_rate, 
+                            bytesize=serial.SEVENBITS, 
+                            parity=serial.PARITY_ODD, 
+                            stopbits=serial.STOPBITS_ONE, 
+                            timeout=1)
+    except:
+        try:
+            ser.close()
+        except:
+            print ("Serial port already closed" )
+        ser = serial.Serial(serial_port, baud_rate, 
+                            bytesize=serial.SEVENBITS, 
+                            parity=serial.PARITY_ODD, 
+                            stopbits=serial.STOPBITS_ONE, 
+                            timeout=1)
+
+    send_arduino_control(ser, 0.0, 1)
+
+    return ser
+
+
+def send_arduino_control(ser, control, channel):
+
+    if channel == 1:
+
+        ard_mess =  int(MAX_ARDUINO_SIGNAL/20 * control + MAX_ARDUINO_SIGNAL/2.0)*10 + channel
+
+    elif channel == 2:
+               
+        control = control - 2.5
+        control = np.max([control, -10.0])
+
+        ard_mess =  int(MAX_ARDUINO_SIGNAL_390/20 * control + MAX_ARDUINO_SIGNAL_390/2.0)*10 + channel
+        
+    mystr = '{:05d}'.format(ard_mess).encode('utf-8')
+    ser.write(mystr) # converts from unicode to bytes        
+
+    return
+
+
+
+##################################################################
+# PID
+##################################################################
+
+
+def init_pid():
+
+    act_values = get_frequencies()
+    setpoint = act_values
+    pids = ''
+    #Kps = 1
+    #Kis = 100
+    #Kds = 0
+
+    Kps = 2
+    Kis = 5000
+    Kds = 0
+
+    pid = PID(Kps, Kis, Kds, setpoint, sample_time = 0.001, output_limits = [-10, 10])
+    
+    return pid
+
+
+def loop_pid(ser, new_setpoint, pids, act_values):
+
+   
+    DAC_chan = 2 # 2 is 390
+    
+    if DAC_chan == 1:
+        invert_pid = 1
+    elif DAC_chan == 2:
+        invert_pid = -1
+
+    time.sleep(.01)
+
+    #try:
+    #    pids.setpoint = float(new_setpoint)        
+    #except:
+    #    pass
+    
+    if new_setpoint > 0:
+        pids.setpoint = float(new_setpoint)        
+        act_values = get_frequencies()
+        control = invert_pid * pids(act_values)
+        
+        send_arduino_control(ser, control, DAC_chan)
+
+        if control == MAX_ARDUINO_SIGNAL or control == 0.0:
+            print(control)
+        #try:
+        #    print("{0:4f} {3:5d} {1:.6f} {2:.6f}".format(control, act_values, new_setpoint, ard_mess))
+        #except:
+        #    print("error {0} {3} {1} {2}".format(control, act_values, new_setpoint, ard_mess))
+                
+    return act_values
+
+
+def run_pid(q_var, ser, pids):
+
+    new_setpoint = get_frequencies()
+    act_values = 0
+
+    while True:        
+
+        try:
+            var = q_var.get(block = False)
+            
+            #print(new_setpoint)
+            new_setpoint = var
+            
+            print()
+            print('New setpoint ... ' + str(new_setpoint))
+
+        except queue.Empty:            
+            #print('error2')
+            pass
+
+        #new_setpoint = 709.078540
+
+        # run PID
+        if new_setpoint > 0:
+            act_values = loop_pid(ser, new_setpoint, pids, act_values)
+
+        #print(new_setpoint)
+
+    return
+
+
+
+#############################################################
+# Server to receive new setpoint
+#############################################################
+
+
+def setup_server():
+    # Create a TCP/IP socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    # Bind the socket to the port
+    server_address = ('192.168.42.136', 63700)
+    print('starting up on %s port %s' % server_address)
+    sock.bind(server_address)
+
+    # Listen for incoming connections
+    sock.listen(1)
+
+    return sock
+
+
+
+def run_server(q_var, sock):
+    while True:
+        # Wait for a connection
+        #print('waiting for a connection')
+        connection, client_address = sock.accept()
+
+        try:
+            #print('connection from', client_address)
+
+            # Receive the data in small chunks and retransmit it
+            
+            # data = 374.123456789 = new set point
+
+            data = connection.recv(13)
+            data = str(data.decode())
+
+            q_var.put(np.float(data))
+            
+        finally:
+            connection.close()
+
+
+###################################
+# main
+###################################
+
+print('Init ...')
+ser = init_arduino()
+
+sock = setup_server()
+
+print('Init PID ...')
+pid = init_pid()
+
+
+
+
+# Queue allows for communicating between threads
+q_var = queue.Queue()
+
+q_var.put(0.0)
+
+
+# start PID thread
+pid_thread = threading.Thread(target=run_pid, args=(q_var, ser, pid), daemon = True)
+pid_thread.start()
+
+
+# start socket thread
+socket_thread = threading.Thread(target=run_server, args=(q_var, sock,), daemon = True)
+socket_thread.start()
+
+
+
+# keep deamons running
+while True:
+    pass
+
+
+
+

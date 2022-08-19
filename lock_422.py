@@ -109,8 +109,8 @@ if True:
     setpoints[0] = get_setpoint(setpoint_files[0])
 
     pids = ['','','','']
-    Kps = [10,400,100,100]
-    Kis = [3000,10000,100,1000]
+    Kps = [1,400,100,100]
+    Kis = [300,10000,100,1000]
     Kds = [0,0,0,0]
 
     invert_pid = [1, -1]

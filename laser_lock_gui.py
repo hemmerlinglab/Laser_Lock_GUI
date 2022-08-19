@@ -105,7 +105,7 @@ class App(QWidget):
         self.set_point = np.float(self.laser_offset.text()) + np.float(self.laser_scan.value())*1e-6
         # update set point
         #file = open("../Prehistoric-Data-Acquisition/setpoint.txt", "w")
-        file = open("z:\\setpoint.txt", "w")
+        file = open(r"z:\Logs\422_setpoint.txt", "w")
         file.write(str(self.set_point))
         file.close()
 
@@ -117,7 +117,7 @@ class App(QWidget):
         
         # update set point
         #file = open("../Prehistoric-Data-Acquisition/setpoint.txt", "r")
-        file = open("z:\\setpoint.txt", "r")
+        file = open(r"z:\Logs\422_setpoint.txt", "r")
         self.set_point = np.float(file.readline())
         file.close()
 
