@@ -38,9 +38,9 @@ def get_frequencies(opts):
     return output
 
 
-def init_arduino():
+def init_arduino(opts):
 
-    serial_port  = 'COM5'; #pid lock arduino port
+    serial_port  = opts['arduino_com_port']; #pid lock arduino port
 
     baud_rate = 9600; #In arduino, Serial.begin(baud_rate)
 
@@ -241,12 +241,12 @@ def switch_fiber_channel(opts, channel, wait_time = None):
 #############################################################
 
 
-def setup_setpoint_server():
+def setup_setpoint_server(opts):
     # Create a TCP/IP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     # Bind the socket to the port
-    server_address = ('192.168.42.136', 63700)
+    server_address = (opts['setpoint_server_ip'], opts['setpoints_server_port'])
     print('starting up on %s port %s' % server_address)
     sock.bind(server_address)
 
@@ -301,6 +301,9 @@ def run_setpoint_server(q_arr, sock):
 
 
 opts = {
+        'arduino_com_port' : 'COM5',
+        'setpoint_server_ip' : '192.168.42.136',
+        'setpoint_server_port' : 63700,
         'wavemeter_server_ip' : '192.168.42.20',
         'wavemeter_server_port' : 62500,
         'fiber_server_ip' : '192.168.42.20',
@@ -317,9 +320,9 @@ current_channel = 6
 
 
 print('Init ...')
-ser = init_arduino()
+ser = init_arduino(opts)
 
-sock = setup_setpoint_server()
+sock = setup_setpoint_server(opts)
 
 print('Init PID ...')
 pid_arr, init_setpoints = init_pid(opts)
