@@ -68,7 +68,9 @@ def main(stdscr):
     #stdscr.addstr()
     stdscr.addstr(4,0,'Initializing variables...',curses.color_pair(1))
     stdscr.refresh()
-    chans = [1,2,3,4]
+    #chans = [1,2,3,4]
+    chans = [1,2,3]
+	
     setpoint_files = ['setpoint.txt','setpoint2.txt','setpoint3.txt','setpoint4.txt']
     setpoints = [0,0,0,0]
     act_values = [0,0,0,0]
@@ -266,7 +268,7 @@ def main(stdscr):
             stdscr.addstr(scry+5,scrx[1],'ENABLED ',curses.color_pair(3))
             stdscr.addstr(scry+5,scrx[0],'ENABLED ',curses.color_pair(3))
             stdscr.addstr(scry+5,scrx[2],'ENABLED ',curses.color_pair(3))
-            stdscr.addstr(scry+5,scrx[3],'ENABLED ',curses.color_pair(3))
+            #stdscr.addstr(scry+5,scrx[3],'ENABLED ',curses.color_pair(3))
         else:
             pass
 
