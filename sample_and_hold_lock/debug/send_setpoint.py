@@ -3,11 +3,11 @@ import numpy as np
 import sys
 
 
-def set_laser_setpoint(chan, freq, wait_time = 1, switch_channel = 0):
+def set_laser_setpoint(ip, chan, freq, wait_time = 1, switch_channel = 0):
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    server_address = ('192.168.42.136', 63700)
+    server_address = (ip, 63700)
 
     print('Sending new setpoint: ' + str(freq))
 
@@ -26,10 +26,12 @@ def set_laser_setpoint(chan, freq, wait_time = 1, switch_channel = 0):
 
 
 
-chan = sys.argv[1]
-freq = sys.argv[2]
+ip = sys.argv[1]
+chan = sys.argv[2]
+freq = sys.argv[3]
+switch_channel = sys.argv[4]
 
-set_laser_setpoint(chan, freq)
+set_laser_setpoint(ip, chan, freq, switch_channel = switch_channel)
 
 
 
