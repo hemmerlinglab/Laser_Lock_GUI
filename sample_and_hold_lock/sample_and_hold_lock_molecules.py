@@ -131,8 +131,6 @@ def run_pid(q_arr, ser, pid_arr, current_channel, init_setpoints, opts):
     # q_arr : setpoints
     # pid_arr : pids
 
-    control = 0
-
     act_values = {}
     setpoints = init_setpoints
     
@@ -186,15 +184,13 @@ def run_pid(q_arr, ser, pid_arr, current_channel, init_setpoints, opts):
                 pid_arr[c].setpoint = float(setpoints[c]) 
                 act_values = get_frequencies(opts)
 
-                control = pid_arr[c](act_values)
-
                 #if c == 6:
                 #    print("{0}, {1}, {2}".format(act_values, pid_arr[c].setpoint, control))
 
-                last_output[c] = control
+                last_output[c] = pid_arr[c](act_values)
     
                 # send control voltage to Arduino
-                send_arduino_control(ser, control, opts['pids'][c]['DAC_chan'])
+                send_arduino_control(ser, last_output[c], opts['pids'][c]['DAC_chan'])
 
    
                 #print(act_values)
@@ -306,8 +302,8 @@ opts = {
         'fiber_server_ip' : '192.168.42.20',
         'fiber_server_port' : 65000,
         'pids' : {
-            2 : {'laser' : 1064, 'wavemeter_channel' : 2, 'Kp' : 10, 'Ki' : 400, 'DAC_chan' : 1},
-            3 : {'laser' : 398, 'wavemeter_channel' : 3, 'Kp' : 10, 'Ki' : 400, 'DAC_chan' : 2},
+            2 : {'laser' : 398, 'wavemeter_channel' : 2, 'Kp' : -10, 'Ki' : -10000, 'DAC_chan' : 2},
+            3 : {'laser' : 1064, 'wavemeter_channel' : 3, 'Kp' : 10, 'Ki' : 4000, 'DAC_chan' : 1},
             }
         }
 
