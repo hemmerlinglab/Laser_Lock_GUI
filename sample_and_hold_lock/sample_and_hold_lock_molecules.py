@@ -69,7 +69,7 @@ def init_arduino():
 def send_arduino_control(ser, control, channel):
 
     MAX_ARDUINO_SIGNAL = 4095.0
-    MAX_ARDUINO_SIGNAL_390 = 3250.0
+    MAX_ARDUINO_SIGNAL_390 = 4095.0
 
     # channel 1 : 422
     # channel 2 : 390
@@ -219,7 +219,7 @@ def switch_fiber_channel(opts, channel, wait_time = None):
 
     # Bind the socket to the port
     server_address = (opts['fiber_server_ip'], opts['fiber_server_port'])
-    print('Switching fiber channel on %s port %s' % server_address)
+    print('Switching fiber channel on {0} port {1} to channel {2}'.format(server_address[0], server_address[1], channel))
     #sock.bind(server_address)
 
     sock.connect(server_address)
@@ -246,7 +246,7 @@ def setup_setpoint_server():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     # Bind the socket to the port
-    server_address = ('192.168.42.136', 63700)
+    server_address = ('192.168.42.20', 63700)
     print('starting up on %s port %s' % server_address)
     sock.bind(server_address)
 
@@ -306,8 +306,8 @@ opts = {
         'fiber_server_ip' : '192.168.42.20',
         'fiber_server_port' : 65000,
         'pids' : {
-            1 : {'laser' : 1064, 'wavemeter_channel' : 1, 'Kp' : 10, 'Ki' : 400, 'DAC_chan' : 1},
-            2 : {'laser' : 398, 'wavemeter_channel' : 2, 'Kp' : 10, 'Ki' : 400, 'DAC_chan' : 2},
+            2 : {'laser' : 1064, 'wavemeter_channel' : 2, 'Kp' : 10, 'Ki' : 400, 'DAC_chan' : 1},
+            3 : {'laser' : 398, 'wavemeter_channel' : 3, 'Kp' : 10, 'Ki' : 400, 'DAC_chan' : 2},
             }
         }
 

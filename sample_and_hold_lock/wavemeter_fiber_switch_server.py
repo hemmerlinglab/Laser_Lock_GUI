@@ -148,7 +148,9 @@ def run_fiber_switcher_server(sock, fib, wlm, current_channel):
                 # set exposure time
                 if chan == 1:
                     wlm.SetExposure(100)
-                if chan == 2:
+                elif chan == 2:
+                    wlm.SetExposure(40)
+                elif chan == 3:
                     wlm.SetExposure(100)
                 elif chan == 5:
                     wlm.SetExposure(200)
