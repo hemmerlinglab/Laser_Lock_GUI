@@ -19,7 +19,7 @@ def send2ard(ser, voltage, chan):
 
 
 if True:
-    serial_port  = 'COM5'; #pid lock arduino port    
+    serial_port  = 'COM6'; #pid lock arduino port    
     baud_rate = 9600; #In arduino, Serial.begin(baud_rate
 
     try:
