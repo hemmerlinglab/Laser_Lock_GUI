@@ -42,34 +42,39 @@ def get_frequencies(opts):
 ###################################################################
 
 
-def init_arduino(com_port, init_output = False):
+def init_arduinos(com_ports, init_output = False):
 
-    serial_port = com_port #'COM14'; #pid lock arduino port
+    ser_connections = {}
+    for port in com_ports.keys():
 
-    baud_rate = 9600 #; #In arduino, Serial.begin(baud_rate)
+        serial_port = port #'COM14'; #pid lock arduino port
 
-    try:
-        ser = serial.Serial(serial_port, baud_rate, 
-                            bytesize=serial.SEVENBITS, 
-                            parity=serial.PARITY_ODD, 
-                            stopbits=serial.STOPBITS_ONE, 
-                            timeout=1)
-    except:
+        baud_rate = 9600 #; #In arduino, Serial.begin(baud_rate)
+
         try:
-            ser.close()
+            ser = serial.Serial(serial_port, baud_rate, 
+                                bytesize=serial.SEVENBITS, 
+                                parity=serial.PARITY_ODD, 
+                                stopbits=serial.STOPBITS_ONE, 
+                                timeout=1)
         except:
-            print ("Serial port already closed" )
-        ser = serial.Serial(serial_port, baud_rate, 
-                            bytesize=serial.SEVENBITS, 
-                            parity=serial.PARITY_ODD, 
-                            stopbits=serial.STOPBITS_ONE, 
-                            timeout=1)
+            try:
+                ser.close()
+            except:
+                print ("Serial port already closed" )
+            ser = serial.Serial(serial_port, baud_rate, 
+                                bytesize=serial.SEVENBITS, 
+                                parity=serial.PARITY_ODD, 
+                                stopbits=serial.STOPBITS_ONE, 
+                                timeout=1)
+    
+        if init_output:
+            send_arduino_control(ser, 0.0, 1)
+            send_arduino_control(ser, 0.0, 2)
+    
+        ser_connections[port] = ser
 
-    if init_output:
-        send_arduino_control(ser, 0.0, 1)
-        send_arduino_control(ser, 0.0, 2)
-
-    return ser
+     return ser_connections
 
 
 
@@ -270,8 +275,8 @@ def run_pid(q_arr, ser, pid_arr, current_channel, init_setpoints, opts):
 
                 last_output[c] = pid_arr[c](act_values)
     
-                # send control voltage to Arduino
-                send_arduino_control(ser, last_output[c], opts['pids'][c]['DAC_chan'], max_output = opts['pids'][c]['DAC_max_output'])
+                # send control voltage to Arduino of laser
+                send_arduino_control(ser[opts['pids'][c]['arduino_no']], last_output[c], opts['pids'][c]['DAC_chan'], max_output = opts['pids'][c]['DAC_max_output'])
 
    
                 #print(act_values)
@@ -292,7 +297,7 @@ def run_pid(q_arr, ser, pid_arr, current_channel, init_setpoints, opts):
 def init_all(opts):
 
     print('Init ...')
-    ser = init_arduino(com_port = opts['arduino_com_port'])
+    ser = init_arduino(com_port = opts['arduino_com_ports'])
     
     sock = setup_setpoint_server(opts)
     
