@@ -74,6 +74,7 @@ def init_arduinos(com_ports, init_output = False):
     
         ser_connections[port] = ser
 
+    #print(ser_connections)
     return ser_connections
 
 
@@ -81,15 +82,15 @@ def init_arduinos(com_ports, init_output = False):
 
 def send_arduino_control(ser, control, channel, max_output = 4095.0):
 
-    #MAX_ARDUINO_SIGNAL = 4095.0
-    #MAX_ARDUINO_SIGNAL_390 = 4095.0
-
+    #print(control)
     # channel = which arduino DAC channel
 
     ard_mess =  int(max_output/20.0 * control + max_output/2.0)*10 + channel
 
     mystr = '{:05d}'.format(ard_mess).encode('utf-8')
     ser.write(mystr) # converts from unicode to bytes        
+
+    #print(mystr)
 
     return
 
@@ -277,9 +278,13 @@ def run_pid(q_arr, ser, pid_arr, current_channel, init_setpoints, opts):
     
                 # send control voltage to Arduino of laser
                 send_arduino_control(ser[opts['pids'][c]['arduino_no']], last_output[c], opts['pids'][c]['DAC_chan'], max_output = opts['pids'][c]['DAC_max_output'])
-
    
+
+                #print("Output: {0} Act_values: {1} Set_point: {2}".format(last_output[c], act_values, setpoints[c]))
+                #print(opts['pids'][c]['arduino_no'])
+                #print(ser)
                 #print(act_values)
+                #print(last_output[c])
 
             #else:
             elif (setpoints[c] <= 0) and (pid_arr[c].auto_mode == True):
