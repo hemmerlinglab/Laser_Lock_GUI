@@ -5,7 +5,7 @@
 #from wlm import *
 
 import sys
-from PyQt5.QtWidgets import QLineEdit, QTabWidget, QSizePolicy, QTextEdit, QMainWindow, QApplication, QWidget, QAction, QTableWidget,QTableWidgetItem,QSpinBox,QVBoxLayout,QPushButton,QLabel,QHBoxLayout
+from PyQt5.QtWidgets import QLineEdit, QTabWidget, QSizePolicy, QTextEdit, QMainWindow, QApplication, QWidget, QAction, QTableWidget,QTableWidgetItem,QSpinBox,QVBoxLayout,QPushButton,QLabel,QHBoxLayout,QRadioButton,QButtonGroup
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot, QTimer
 import numpy as np
@@ -23,6 +23,8 @@ else:
     from matplotlib.backends.backend_qt4agg import (
         FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.figure import Figure
+
+from sample_and_hold_lock.base_functions import switch_fiber_channel
 
 #from simple_pid import PID
 
@@ -112,8 +114,44 @@ class App(QWidget):
         self.tab_main2.setLayout(self.tab_main2.layout)
 
         ### End laser 2
+               
+        self.r1 = QRadioButton('1')
+        self.r2 = QRadioButton('2')
+        self.r3 = QRadioButton('3')
+        self.r4 = QRadioButton('4')
+        self.r5 = QRadioButton('5')
+        self.r6 = QRadioButton('6')
 
-        self.layout = QHBoxLayout()
+        self.r1.toggled.connect(self.update_switcher)
+        self.r2.toggled.connect(self.update_switcher)
+        self.r3.toggled.connect(self.update_switcher)
+        self.r4.toggled.connect(self.update_switcher)
+        self.r5.toggled.connect(self.update_switcher)
+        self.r6.toggled.connect(self.update_switcher)
+
+        self.switcher_group = QButtonGroup()
+
+        self.switcher_group.addButton(self.r1)
+        self.switcher_group.addButton(self.r2)
+        self.switcher_group.addButton(self.r3)
+        self.switcher_group.addButton(self.r4)
+        self.switcher_group.addButton(self.r5)
+        self.switcher_group.addButton(self.r6)
+
+        #self.tabs.addTab(self.tab_switcher, "Fiber Switch")
+        
+        hbox = QHBoxLayout()
+        hbox.addWidget(self.r1)
+        hbox.addWidget(self.r2)
+        hbox.addWidget(self.r3)
+        hbox.addWidget(self.r4)
+        hbox.addWidget(self.r5)
+        hbox.addWidget(self.r6)
+        
+        self.layout = QVBoxLayout()
+
+        self.layout.addLayout(hbox) 
+        
         self.layout.addWidget(self.tabs) 
         self.setLayout(self.layout) 
  
@@ -130,8 +168,24 @@ class App(QWidget):
       
         #self.read_set_point2()
 
+        self.r1.toggle()
+
+        self.opts = {
+                'fiber_server_ip' : '192.168.42.20',
+                'fiber_server_port' : 65000
+                }
 
         self.show()
+
+    def update_switcher(self, _):
+
+        btn = self.sender()
+        if btn.isChecked():
+            print('Switching fiber switch to channel ... ' + str(btn.text()))            
+
+            switch_fiber_channel(self.opts, int(btn.text()), wait_time = None)
+
+        return
 
     def single_step_update(self):
         self.laser_scan.setSingleStep(np.int(self.single_step.text()))
