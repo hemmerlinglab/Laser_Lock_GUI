@@ -271,7 +271,7 @@ def run_pid(q_arr, ser, pid_arr, current_channel, init_setpoints, opts):
                 last_output[c] = pid_arr[c](act_values)
     
                 # send control voltage to Arduino
-                send_arduino_control(ser, last_output[c], opts['pids'][c]['DAC_chan'])
+                send_arduino_control(ser, last_output[c], opts['pids'][c]['DAC_chan'], max_output = opts['pids'][c]['DAC_max_output'])
 
    
                 #print(act_values)

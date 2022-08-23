@@ -1,12 +1,3 @@
-import sys
-import serial
-import time
-import socket
-from simple_pid import PID
-import threading
-import queue
-import numpy as np
-
 from base_functions import *
 
 
@@ -27,8 +18,8 @@ opts = {
         'fiber_server_ip' : '192.168.42.20',
         'fiber_server_port' : 65000,
         'pids' : {
-            2 : {'laser' : 398, 'wavemeter_channel' : 2, 'Kp' : -10, 'Ki' : -10000, 'DAC_chan' : 2},
-            3 : {'laser' : 1064, 'wavemeter_channel' : 3, 'Kp' : 10, 'Ki' : 4000, 'DAC_chan' : 1},
+            2 : {'laser' : 398, 'wavemeter_channel' : 2, 'Kp' : -10, 'Ki' : -10000, 'DAC_chan' : 2, 'DAC_max_output' : 4095.0},
+            3 : {'laser' : 1064, 'wavemeter_channel' : 3, 'Kp' : 10, 'Ki' : 4000, 'DAC_chan' : 1, 'DAC_max_output' : 4095.0},
             },
         'fiber_switcher_init_channel' : 2
         }
