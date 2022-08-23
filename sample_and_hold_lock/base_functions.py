@@ -47,7 +47,7 @@ def init_arduinos(com_ports, init_output = False):
     ser_connections = {}
     for port in com_ports.keys():
 
-        serial_port = port #'COM14'; #pid lock arduino port
+        serial_port = com_ports[port] #'COM14'; #pid lock arduino port
 
         baud_rate = 9600 #; #In arduino, Serial.begin(baud_rate)
 
@@ -74,7 +74,7 @@ def init_arduinos(com_ports, init_output = False):
     
         ser_connections[port] = ser
 
-     return ser_connections
+    return ser_connections
 
 
 
@@ -297,7 +297,7 @@ def run_pid(q_arr, ser, pid_arr, current_channel, init_setpoints, opts):
 def init_all(opts):
 
     print('Init ...')
-    ser = init_arduino(com_port = opts['arduino_com_ports'])
+    ser = init_arduinos(com_ports = opts['arduino_com_ports'])
     
     sock = setup_setpoint_server(opts)
     

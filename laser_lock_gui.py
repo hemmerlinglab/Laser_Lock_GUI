@@ -168,12 +168,14 @@ class App(QWidget):
       
         #self.read_set_point2()
 
-        self.r1.toggle()
+        
 
         self.opts = {
                 'fiber_server_ip' : '192.168.42.20',
                 'fiber_server_port' : 65000
                 }
+				
+        self.r1.toggle()
 
         self.show()
 

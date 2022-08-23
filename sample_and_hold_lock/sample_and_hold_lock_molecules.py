@@ -21,7 +21,7 @@ opts = {
             2 : {'laser' : 398, 'wavemeter_channel' : 2, 'Kp' : -10, 'Ki' : -10000, 'arduino_no' : 0, 'DAC_chan' : 2, 'DAC_max_output' : 4095.0},
             3 : {'laser' : 1064, 'wavemeter_channel' : 3, 'Kp' : 10, 'Ki' : 4000, 'arduino_no' : 1, 'DAC_chan' : 1, 'DAC_max_output' : 4095.0},
             },
-        'fiber_switcher_init_channel' : 2
+        'fiber_switcher_init_channel' : 3
         }
    
 
