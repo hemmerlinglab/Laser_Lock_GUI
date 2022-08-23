@@ -95,10 +95,10 @@ class App(QWidget):
 ### Tab 2
         self.tab_main2 = QWidget()
 
-        self.tabs.addTab(self.tab_main2, "Hodor")
+        self.tabs.addTab(self.tab_main2, "Daenerys")
 
         self.laser_scan2 = QSpinBox()
-        self.laser_offset2 = QLineEdit('')
+        self.laser_offset2 = QLineEdit('286.58316')
         self.laser_set_point2 = QLineEdit('')
         self.single_step2 = QLineEdit('10')
 
