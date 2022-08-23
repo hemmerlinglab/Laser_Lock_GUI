@@ -13,7 +13,7 @@ def set_laser_setpoint(ip, chan, freq, wait_time = 1, switch_channel = 0):
 
     sock.connect(server_address)
 
-    my_str = "{0:1d},{1:.9f},{2:1d},{3:4d}".format(int(chan), np.float(freq), int(switch_channel), int(wait_time))
+    my_str = "{0:1d},{1:.9f},{2:1d},{3:4d}".format(int(chan), float(freq), int(switch_channel), int(wait_time))
 
     try:
         sock.sendall(my_str.encode())
