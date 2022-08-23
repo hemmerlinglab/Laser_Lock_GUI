@@ -1,7 +1,10 @@
 import socket
 import serial
 import time
-
+from simple_pid import PID
+import threading
+import queue
+import numpy as np
 
 
 def get_frequencies(opts):
@@ -303,7 +306,7 @@ def init_all(opts):
     q_arr = queue.Queue()
     
     # start PID thread
-    pid_thread = threading.Thread(target=run_pid, args=(q_arr, ser, pid_arr, current_channel, init_setpoints, opts), daemon = True)
+    pid_thread = threading.Thread(target=run_pid, args=(q_arr, ser, pid_arr, opts['fiber_switcher_init_channel'], init_setpoints, opts), daemon = True)
     pid_thread.start()
     
     # start socket thread
