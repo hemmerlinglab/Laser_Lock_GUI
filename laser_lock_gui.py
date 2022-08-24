@@ -15,6 +15,8 @@ import fileinput
 from scipy.interpolate import interp1d
 import socket
 
+from functools import partial
+
 from matplotlib.backends.qt_compat import QtCore, QtWidgets, is_pyqt5
 if is_pyqt5():
     from matplotlib.backends.backend_qt5agg import (
@@ -26,7 +28,6 @@ from matplotlib.figure import Figure
 
 from sample_and_hold_lock.base_functions import switch_fiber_channel
 
-#from simple_pid import PID
 
 
 
@@ -34,7 +35,7 @@ class App(QWidget):
  
     def __init__(self):
         super().__init__()
-        self.title = 'Logging Plots'
+        self.title = 'Laser Lock'
         self.left = 0
         self.top = 0
         self.width = 200
@@ -55,158 +56,131 @@ class App(QWidget):
         return
 
     def initUI(self):
+             
+        self.opts = {
+                'fiber_server_ip' : '192.168.42.20',
+                'fiber_server_port' : 65000,
+                'lasers' : [
+                    {'id' : 'Davos', 'init_freq' : '375.0215', 'channel' : 1, 'step_size' : '10'},
+                    {'id' : 'Hodor', 'init_freq' : '391.016', 'channel' : 2, 'step_size' : '10'},
+                    {'id' : 'Daenerys', 'init_freq' : '286.5831600', 'channel' : 3, 'step_size' : '10'},
+                    ]
+                }
+			
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
  
-        self.tabs = QTabWidget()
-
-        self.tab_main = QWidget()
-
-        self.tabs.addTab(self.tab_main, "Davos")
-
-        self.laser_scan = QSpinBox()
-        self.laser_offset = QLineEdit('391.016000')
-        self.laser_set_point = QLineEdit('')
-        self.single_step = QLineEdit('10')
-
-        self.tab_main.layout = QVBoxLayout()
-        self.tab_main.layout.addWidget(QLabel('Frequency Offset (THz)'))
-        self.tab_main.layout.addWidget(self.laser_offset)
-        self.tab_main.layout.addWidget(QLabel('Frequency Shift (MHz)'))
-        self.tab_main.layout.addWidget(self.laser_scan)
-        self.tab_main.layout.addWidget(QLabel('Step Size (MHz)'))
-        self.tab_main.layout.addWidget(self.single_step)
-        self.tab_main.layout.addWidget(QLabel('Frequency Set Point (THz)'))
-        self.tab_main.layout.addWidget(self.laser_set_point)
-        self.tab_main.setLayout(self.tab_main.layout)
-
-        self.laser_scan.valueChanged.connect(self.set_point_update)
-        self.laser_scan.valueChanged.connect(self.single_step_update)
-               
-        # properties
-        self.laser_offset.text
-        self.laser_scan.setSuffix(' MHz')
-        self.laser_scan.setMinimum(-100000)
-        self.laser_scan.setMaximum(100000)
-        self.laser_scan.setSingleStep(int(self.single_step.text()))
-        # Show widget
-      
-        #self.read_set_point()
-### Tab 2
-        self.tab_main2 = QWidget()
-
-        self.tabs.addTab(self.tab_main2, "Daenerys")
-
-        self.laser_scan2 = QSpinBox()
-        self.laser_offset2 = QLineEdit('286.5831600')
-        self.laser_set_point2 = QLineEdit('')
-        self.single_step2 = QLineEdit('10')
-
-        self.tab_main2.layout = QVBoxLayout()
-        self.tab_main2.layout.addWidget(QLabel('Frequency Offset (THz)'))
-        self.tab_main2.layout.addWidget(self.laser_offset2)
-        self.tab_main2.layout.addWidget(QLabel('Frequency Shift (MHz)'))
-        self.tab_main2.layout.addWidget(self.laser_scan2)
-        self.tab_main2.layout.addWidget(QLabel('Step Size (MHz)'))
-        self.tab_main2.layout.addWidget(self.single_step2)
-        self.tab_main2.layout.addWidget(QLabel('Frequency Set Point (THz)'))
-        self.tab_main2.layout.addWidget(self.laser_set_point2)
-        self.tab_main2.setLayout(self.tab_main2.layout)
-
-        ### End laser 2
-               
-        self.r1 = QRadioButton('1')
-        self.r2 = QRadioButton('2')
-        self.r3 = QRadioButton('3')
-        self.r4 = QRadioButton('4')
-        self.r5 = QRadioButton('5')
-        self.r6 = QRadioButton('6')
-
-        self.r1.toggled.connect(self.update_switcher)
-        self.r2.toggled.connect(self.update_switcher)
-        self.r3.toggled.connect(self.update_switcher)
-        self.r4.toggled.connect(self.update_switcher)
-        self.r5.toggled.connect(self.update_switcher)
-        self.r6.toggled.connect(self.update_switcher)
-
-        self.switcher_group = QButtonGroup()
-
-        self.switcher_group.addButton(self.r1)
-        self.switcher_group.addButton(self.r2)
-        self.switcher_group.addButton(self.r3)
-        self.switcher_group.addButton(self.r4)
-        self.switcher_group.addButton(self.r5)
-        self.switcher_group.addButton(self.r6)
-
-        #self.tabs.addTab(self.tab_switcher, "Fiber Switch")
+ 
+        hbox_fiber_switcher = self.init_switcherUI()
         
-        hbox = QHBoxLayout()
-        hbox.addWidget(self.r1)
-        hbox.addWidget(self.r2)
-        hbox.addWidget(self.r3)
-        hbox.addWidget(self.r4)
-        hbox.addWidget(self.r5)
-        hbox.addWidget(self.r6)
+        hbox_lasers = self.init_laserUI()
+
         
         self.layout = QVBoxLayout()
 
-        self.layout.addLayout(hbox) 
+        # add fiber switcher
+        self.layout.addLayout(hbox_fiber_switcher) 
         
-        self.layout.addWidget(self.tabs) 
+        # add lasers
+        self.layout.addLayout(hbox_lasers) 
+        
+        #self.layout.addWidget(self.tabs) 
+        
         self.setLayout(self.layout) 
  
-        self.laser_scan2.valueChanged.connect(self.set_point_update2)
-        self.laser_scan2.valueChanged.connect(self.single_step_update2)
-               
-        # properties
-        self.laser_offset2.text
-        self.laser_scan2.setSuffix(' MHz')
-        self.laser_scan2.setMinimum(-100000)
-        self.laser_scan2.setMaximum(100000)
-        self.laser_scan2.setSingleStep(int(self.single_step2.text()))
-        # Show widget
-      
-        #self.read_set_point2()
 
-        
-
-        self.opts = {
-                'fiber_server_ip' : '192.168.42.20',
-                'fiber_server_port' : 65000
-                }
-				
-        self.r1.toggle()
-
+        	
         self.show()
 
+    def init_laserUI(self):
+
+        hbox = QHBoxLayout()
+
+        for k in range(len(self.opts['lasers'])):
+
+            laser = self.opts['lasers'][k]
+
+            single_step = QLineEdit(laser['step_size'])
+
+            set_point = QLineEdit(laser['init_freq'])
+
+            laser_scan = QSpinBox()
+            laser_offset = QLineEdit(laser['init_freq'])
+
+            vbox = QVBoxLayout()
+            vbox.addWidget(QLabel('Frequency Offset (THz)'))        
+            vbox.addWidget(laser_offset)
+            
+            vbox.addWidget(QLabel('Frequency Shift (MHz)'))
+            vbox.addWidget(laser_scan)
+            
+            vbox.addWidget(QLabel('Step Size (MHz)'))               
+            vbox.addWidget(single_step)
+            
+            vbox.addWidget(QLabel('Frequency Set Point (THz)'))
+            vbox.addWidget(set_point)
+        
+            laser_scan.valueChanged.connect(partial(self.single_step_update, single_step))
+            laser_scan.valueChanged.connect(partial(self.set_point_update, laser['channel'], set_point, laser_offset, laser_scan))
+            
+
+            # properties
+            #self.laser_offset.text
+            laser_scan.setSuffix(' MHz')
+            laser_scan.setMinimum(-100000)
+            laser_scan.setMaximum(100000)
+            laser_scan.setSingleStep(int(single_step.text()))
+
+
+            hbox.addLayout(vbox)
+
+        return hbox
+    
+    
+    def init_switcherUI(self, no_of_switcher_channels = 8):
+       # Make widget for fiber switcher
+       btn = []
+       
+       self.switcher_group = QButtonGroup()
+       
+       hbox = QHBoxLayout()
+                                                                            
+       for k in range(no_of_switcher_channels):
+           btn = QRadioButton(str(k+1))
+           btn.toggled.connect(self.update_switcher)
+                                                                            
+           if k == 0:
+               btn.toggle()
+                                                                            
+           self.switcher_group.addButton(btn)
+                                                                            
+           hbox.addWidget(btn)
+                                                                            
+       return hbox
+                                                                            
+                                                                            
     def update_switcher(self, _):
+                                                                            
+       btn = self.sender()
+       if btn.isChecked():
+           print('Switching fiber switch to channel ... ' + str(btn.text()))
+           switch_fiber_channel(self.opts, int(btn.text()), wait_time = None)
 
+       return
+
+
+
+    def single_step_update(self, single_step):
+        
         btn = self.sender()
-        if btn.isChecked():
-            print('Switching fiber switch to channel ... ' + str(btn.text()))            
-
-            switch_fiber_channel(self.opts, int(btn.text()), wait_time = None)
+        
+        btn.setSingleStep(int(single_step.text()))
 
         return
 
-    def single_step_update(self):
-        self.laser_scan.setSingleStep(int(self.single_step.text()))
-        return
 
-    def single_step_update2(self):
-        self.laser_scan2.setSingleStep(int(self.single_step2.text()))
-        return
 
-    def send_setpoint(self, which_laser, frequency, do_switch = False, wait_time = 0):
-        if which_laser == 'Davos':
-            channel = 1
-        elif which_laser == 'Hodor':
-            channel = 2
-        elif which_laser == 'Daenerys':
-            channel = 3
-        else:
-            print('Error: No laser to set or scan')
-            asd
+    def send_setpoint(self, channel, frequency, do_switch = False, wait_time = 0):
 
         if do_switch:
             switch = 1
@@ -217,10 +191,11 @@ class App(QWidget):
 
         server_address = ('192.168.42.20', 63700)
 
-        print('Sending new setpoint for {1}: {0:.6f}'.format(frequency, which_laser))
+        print('Sending new setpoint for channel {1}: {0:.6f}'.format(frequency, channel))
         sock.connect(server_address)
 
         message = "{0:1d},{1:.9f},{2:1d},{3:3d}".format(int(channel), float(frequency), int(switch), int(wait_time))
+        print(message)
 
         sock.sendall(message.encode())
 
@@ -228,54 +203,16 @@ class App(QWidget):
 
         return
 
-    def set_point_update(self):
+    def set_point_update(self, which_channel, set_point, laser_offset, laser_scan):
         
-        self.set_point = np.float(self.laser_offset.text()) + np.float(self.laser_scan.value())*1e-6
+        new_set_point = np.float(laser_offset.text()) + np.float(laser_scan.value())*1e-6
         
         # update set point
-        self.send_setpoint('Davos', self.set_point, do_switch = False)
+        self.send_setpoint(which_channel, new_set_point, do_switch = False)
 
-        self.laser_set_point.setText(str(self.set_point))
-
-        return
-
-    def set_point_update2(self):
-        
-        self.set_point2 = np.float(self.laser_offset2.text()) + np.float(self.laser_scan2.value())*1e-6
-        # update set point
-
-        self.send_setpoint('Daenerys', self.set_point2, do_switch = False)
-
-        self.laser_set_point2.setText(str(self.set_point2))
+        set_point.setText(str(new_set_point))
 
         return
-
-    #def read_set_point(self):
-    #    
-    #    # update set point
-    #    #file = open("../Prehistoric-Data-Acquisition/setpoint.txt", "r")
-    #    file = open("y:\\setpoint.txt", "r")
-    #    self.set_point = np.float(file.readline())
-    #    file.close()
-
-    #    self.laser_set_point.setText(str(self.set_point))
-    #    self.laser_offset.setText(str(self.set_point))
-
-    #    return
-
-    #def read_set_point2(self):
-    #    
-    #    # update set point
-    #    #file = open("../Prehistoric-Data-Acquisition/setpoint.txt", "r")
-    #    file = open("y:\\setpoint2.txt", "r")
-    #    self.set_point2 = np.float(file.readline())
-    #    file.close()
-
-    #    self.laser_set_point2.setText(str(self.set_point2))
-    #    self.laser_offset2.setText(str(self.set_point2))
-
-    #    return
-
 
 
 if __name__ == '__main__':
