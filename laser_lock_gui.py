@@ -65,7 +65,7 @@ class App(QWidget):
         self.tabs.addTab(self.tab_main, "Davos")
 
         self.laser_scan = QSpinBox()
-        self.laser_offset = QLineEdit('')
+        self.laser_offset = QLineEdit('391.016000')
         self.laser_set_point = QLineEdit('')
         self.single_step = QLineEdit('10')
 
@@ -88,7 +88,7 @@ class App(QWidget):
         self.laser_scan.setSuffix(' MHz')
         self.laser_scan.setMinimum(-100000)
         self.laser_scan.setMaximum(100000)
-        self.laser_scan.setSingleStep(np.int(self.single_step.text()))
+        self.laser_scan.setSingleStep(int(self.single_step.text()))
         # Show widget
       
         #self.read_set_point()
@@ -98,7 +98,7 @@ class App(QWidget):
         self.tabs.addTab(self.tab_main2, "Daenerys")
 
         self.laser_scan2 = QSpinBox()
-        self.laser_offset2 = QLineEdit('286.58316')
+        self.laser_offset2 = QLineEdit('286.5831600')
         self.laser_set_point2 = QLineEdit('')
         self.single_step2 = QLineEdit('10')
 
@@ -163,7 +163,7 @@ class App(QWidget):
         self.laser_scan2.setSuffix(' MHz')
         self.laser_scan2.setMinimum(-100000)
         self.laser_scan2.setMaximum(100000)
-        self.laser_scan2.setSingleStep(np.int(self.single_step2.text()))
+        self.laser_scan2.setSingleStep(int(self.single_step2.text()))
         # Show widget
       
         #self.read_set_point2()
@@ -190,15 +190,17 @@ class App(QWidget):
         return
 
     def single_step_update(self):
-        self.laser_scan.setSingleStep(np.int(self.single_step.text()))
+        self.laser_scan.setSingleStep(int(self.single_step.text()))
         return
 
     def single_step_update2(self):
-        self.laser_scan2.setSingleStep(np.int(self.single_step2.text()))
+        self.laser_scan2.setSingleStep(int(self.single_step2.text()))
         return
 
     def send_setpoint(self, which_laser, frequency, do_switch = False, wait_time = 0):
-        if which_laser == 'Hodor':
+        if which_laser == 'Davos':
+            channel = 1
+        elif which_laser == 'Hodor':
             channel = 2
         elif which_laser == 'Daenerys':
             channel = 3
@@ -231,7 +233,7 @@ class App(QWidget):
         self.set_point = np.float(self.laser_offset.text()) + np.float(self.laser_scan.value())*1e-6
         
         # update set point
-        self.send_setpoint('Hodor', self.set_point, do_switch = False)
+        self.send_setpoint('Davos', self.set_point, do_switch = False)
 
         self.laser_set_point.setText(str(self.set_point))
 
