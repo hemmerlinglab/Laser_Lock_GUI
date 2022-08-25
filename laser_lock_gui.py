@@ -205,7 +205,7 @@ class App(QWidget):
 
     def set_point_update(self, which_channel, set_point, laser_offset, laser_scan):
         
-        new_set_point = np.float(laser_offset.text()) + np.float(laser_scan.value())*1e-6
+        new_set_point = float(laser_offset.text()) + float(laser_scan.value())*1e-6
         
         # update set point
         self.send_setpoint(which_channel, new_set_point, do_switch = False)
