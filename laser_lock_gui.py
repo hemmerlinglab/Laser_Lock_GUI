@@ -101,13 +101,17 @@ class App(QWidget):
             laser = self.opts['lasers'][k]
 
             single_step = QLineEdit(laser['step_size'])
+            #single_step.setReadOnly(True)
 
             set_point = QLineEdit(laser['init_freq'])
+            set_point.setReadOnly(True)
 
             laser_scan = QSpinBox()
             laser_offset = QLineEdit(laser['init_freq'])
 
             vbox = QVBoxLayout()
+            vbox.addWidget(QLabel('Laser: ' + str(laser['id'])))
+            vbox.addWidget(QLabel('Channel: ' + str(laser['channel'])))
             vbox.addWidget(QLabel('Frequency Offset (THz)'))        
             vbox.addWidget(laser_offset)
             
