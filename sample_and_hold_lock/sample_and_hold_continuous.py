@@ -2,6 +2,29 @@ from base_functions import *
 
 
 
+def send_setpoint(channel, frequency, do_switch = False, wait_time = 0, addr = '192.168.42.20', port = 63700):
+
+        if do_switch:
+            switch = 1
+        else:
+            switch = 0
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        server_address = (addr, port)
+
+        print('Sending new setpoint for channel {1}: {0:.6f}'.format(frequency, channel))
+        sock.connect(server_address)
+
+        message = "{0:1d},{1:.9f},{2:1d},{3:3d}".format(int(channel), float(frequency), int(switch), int(wait_time))
+        print(message)
+
+        sock.sendall(message.encode())
+
+        sock.close()
+
+        return
+
 
 
 
@@ -28,6 +51,30 @@ opts = {
 
 
 init_all(opts)
+
+
+
+chan_davos = 1
+chan_daenerys = 3
+freq_davos = 391.016055
+freq_daenerys = 286.58281
+
+
+
+while True:
+
+    # switch to Davos and relock
+    send_setpoint(chan_davos, freq_davos, do_switch = True, wait_time = 500)
+    
+    # wait
+    time.sleep(2)
+
+    send_setpoint(chan_daenerys, freq_daenerys, do_switch = True, wait_time = 500)
+
+    # wait
+    time.sleep(2)
+
+   
 
 
 # keep deamons running
