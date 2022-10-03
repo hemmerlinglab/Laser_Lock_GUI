@@ -58,7 +58,7 @@ class App(QWidget):
         self.timer = QTimer()
         self.timer.timeout.connect(self.sample_and_lock_lasers)
                 
-        self.timer.start(self.update_interval)
+        #self.timer.start(self.update_interval)
 
     def tick(self):
         return
@@ -86,6 +86,16 @@ class App(QWidget):
         
         self.layout = QVBoxLayout()
 
+        self.switch_sample_and_hold = QPushButton('Switch on Sample and Hold')
+
+        self.switch_sample_and_hold.setCheckable(True)
+        self.switch_sample_and_hold.clicked.connect(self.do_sample_and_hold)
+
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.switch_sample_and_hold)
+
+        self.layout.addLayout(vbox)
+
         # add fiber switcher
         self.layout.addLayout(hbox_fiber_switcher) 
         
@@ -99,6 +109,18 @@ class App(QWidget):
 
         	
         self.show()
+
+    def do_sample_and_hold(self, pressed):
+
+        if pressed: #self.switch_sample_and_hold.isChecked():
+            #self.switch_sample_and_hold.toggle()
+            print("Switching on sample and hold ...")
+            self.timer.start(self.update_interval)
+        else:
+            print("Switching off sample and hold ...")
+            #self.switch_sample_and_hold.toggle()
+            self.timer.stop()
+
 
     def sample_and_lock_lasers(self):
         
@@ -123,8 +145,7 @@ class App(QWidget):
     def init_laserUI(self):
 
         hbox = QHBoxLayout()
-
-
+        
         for k in range(len(self.opts['lasers'])):
 
             laser = self.opts['lasers'][k]
