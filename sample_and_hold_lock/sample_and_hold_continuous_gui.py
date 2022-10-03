@@ -264,7 +264,8 @@ class App(QWidget):
         new_set_point = float(laser_offset.text()) + float(laser_scan.value())*1e-6
         
         # update set point, already done by the time
-        #self.send_setpoint(which_channel, new_set_point, do_switch = False)
+        if not self.switch_sample_and_hold.isChecked():
+            self.send_setpoint(which_channel, new_set_point, do_switch = False)
 
         set_point.setText(str(new_set_point))
 
