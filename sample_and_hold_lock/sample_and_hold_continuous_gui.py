@@ -35,7 +35,7 @@ class App(QWidget):
  
     def __init__(self):
 
-        self.debug_mode = True
+        self.debug_mode = False
 
         super().__init__()
         self.title = 'Laser Lock'
