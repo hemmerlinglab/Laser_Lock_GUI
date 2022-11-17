@@ -19,7 +19,7 @@ def send2ard(ser, voltage, chan):
 
 
 if True:
-    serial_port  = 'COM6'; #pid lock arduino port    
+    serial_port  = 'COM5'; #pid lock arduino port    
     baud_rate = 9600; #In arduino, Serial.begin(baud_rate
 
     try:
@@ -46,8 +46,8 @@ if True:
         for k in np.linspace(-10,10,100):
         #for k in np.linspace(-1,1,100):
             print(k)
-            #send2ard(ser, k, 1)
-            send2ard(ser, k, 2)
+            send2ard(ser, k, 1)
+            #send2ard(ser, k, 2)
             time.sleep(delay)
 
 #    while True:
