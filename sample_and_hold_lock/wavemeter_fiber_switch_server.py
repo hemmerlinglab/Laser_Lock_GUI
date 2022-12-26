@@ -145,6 +145,7 @@ def run_fiber_switcher_server(sock, fib, wlm, current_channel):
             if data:
                 chan = int(data.decode())
 
+                #print('Changing channel to ' + str(chan))
                 # set exposure time
                 if chan == 1:
                     wlm.SetExposure(100)
@@ -152,10 +153,12 @@ def run_fiber_switcher_server(sock, fib, wlm, current_channel):
                     wlm.SetExposure(100)
                 elif chan == 3:
                     wlm.SetExposure(100)
+                elif chan == 4: # HeNe Channel
+                    wlm.SetExposure(100)
                 elif chan == 5:
-                    wlm.SetExposure(400)
+                    wlm.SetExposure(450)
                 elif chan == 6:
-                    wlm.SetExposure(500)
+                    wlm.SetExposure(450)
                 else:
                     wlm.SetExposure(100)
 
