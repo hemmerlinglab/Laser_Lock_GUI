@@ -150,7 +150,7 @@ def run_fiber_switcher_server(sock, fib, wlm):
 
     channel_exposures = {
             1 : 100,
-            2 : 100,
+            2 : 150,
             3 : 100,
             4 : 100, # HeNe channel
             5 : 100,
