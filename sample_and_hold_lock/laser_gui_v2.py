@@ -49,6 +49,7 @@ class App(QWidget):
         self.no_of_points = 100
 
         self.laser_set_points = {}
+        self.laser_pids_status = {}
         
         # auto toggle lasers for sample and hold lock
         self.current_laser = 0 # index of channels_to_toggle_lasers
@@ -73,7 +74,7 @@ class App(QWidget):
                 'fiber_server_port' : 65000,
                 'lasers' : [
                     {'id' : '422', 'init_freq' : '709.078540', 'channel' : 5, 'step_size' : '10'},
-                    {'id' : '390', 'init_freq' : '768.824120', 'channel' : 6, 'step_size' : '10'},
+                    {'id' : '390', 'init_freq' : '766.81766', 'channel' : 6, 'step_size' : '10'},
                     ]
                 }
 
@@ -96,8 +97,6 @@ class App(QWidget):
         
         # add lasers
         self.layout.addLayout(hbox_lasers) 
-        
-        #self.layout.addWidget(self.tabs) 
         
         self.setLayout(self.layout) 
         	
@@ -222,8 +221,19 @@ class App(QWidget):
             laser_offset = QLineEdit(laser['init_freq'])
 
             vbox = QVBoxLayout()
-            vbox.addWidget(QLabel('Laser: ' + str(laser['id'])))
-            vbox.addWidget(QLabel('Channel: ' + str(laser['channel'])))
+            
+            hlp = QHBoxLayout()
+            hlp.addWidget(QLabel('Laser: ' + str(laser['id'])))
+            hlp.addWidget(QLabel('Channel: ' + str(laser['channel'])))
+            hlp.addWidget(QLabel('PID on?'))
+            
+            self.laser_pids_status[str(laser['channel'])] = QCheckBox()
+
+            hlp.addWidget(self.laser_pids_status[str(laser['channel'])])
+
+            vbox.addLayout(hlp)
+
+
             vbox.addWidget(QLabel('Frequency Offset (THz)'))        
             vbox.addWidget(laser_offset)
             
@@ -283,8 +293,8 @@ class App(QWidget):
                                                                             
        btn = self.sender()
        if btn.isChecked() and not self.debug_mode:
-           print('Switching fiber switch to channel ... ' + str(btn.text()))
-           switch_fiber_channel(self.opts, int(btn.text()), wait_time = None)
+           print('Switching fiber switch to channel ...' + str(btn.text()))
+           switch_fiber_channel(self.opts, int(btn.text()), wait_time = None, manual_switch = True)
 
        return
 
