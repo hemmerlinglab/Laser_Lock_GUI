@@ -54,11 +54,14 @@ class LaserLocker(QWidget):
         self.laser_pids_status = {}
 
         # auto toggle lasers for sample and hold lock
+        self.current_laser = 0
         self.channels_to_toggle_lasers = [1]
 
+        self.initiating = True
         self.initOpts()
         self.initThreads()
         self.initUI()
+        self.initiating = False
 
         self.timer_interval = 2000
         self.switch_wait_time = 500
@@ -101,7 +104,8 @@ class LaserLocker(QWidget):
 
         self.current_channel = self.opts['fiber_switcher_init_channel']
         self.last_output = {} # Last total output of PID
-        self.last_integral_term = {} # Last Ki term of PID
+        self.last_pterm = {}
+        self.last_iterm = {} # Last Ki term of PID
 
         print('Init Threads ...')
         ser = self.init_arduinos(com_ports = self.opts['arduino_com_ports'])
@@ -110,7 +114,7 @@ class LaserLocker(QWidget):
         print('Init PID ...')
         self.pid_arr, init_setpoints = self.init_pid()
 
-        self.switch_fiber_channel(self.opts['fiber_switcher_init_channel'], wait_time = 0, initial_switch=True)
+        self.switch_fiber_channel(self.opts['fiber_switcher_init_channel'], wait_time = 0)
         q_arr = queue.Queue()
 
         pid_thread = threading.Thread(target=self.run_pid, args=(q_arr,ser,init_setpoints,self.opts), daemon=True)
@@ -130,10 +134,12 @@ class LaserLocker(QWidget):
         hbox_fiber_switcher = self.init_switcherUI()
         hbox_lasers = self.init_laserUI()
         vbox_sample_and_hold = self.initUI_sample_and_hold()
+        vbox_PID_monitor = self.init_PIDMonitorUI()
 
         self.layout.addLayout(vbox_sample_and_hold)
         self.layout.addLayout(hbox_fiber_switcher)
         self.layout.addLayout(hbox_lasers)
+        self.layout.addLayout(vbox_PID_monitor)
         self.setLayout(self.layout)
         self.show()
 
@@ -143,13 +149,14 @@ class LaserLocker(QWidget):
 
     def sample_and_lock_lasers(self):
 
-        which_channel = self.channels_to_toggle_lasers[self.current_channel]
+        print(self.channels_to_toggle_lasers)
+        which_channel = self.channels_to_toggle_lasers[self.current_laser]
         set_point_widget = self.laser_set_points[str(which_channel)]
         new_setpoint = float(set_point_widget.text())
 
         self.send_setpoint(which_channel, new_setpoint, do_switch=True, wait_time = self.switch_wait_time)
 
-        self.current_channel = (self.current_channel + 1) % len(self.channels_to_toggle_lasers)
+        self.current_laser = (self.current_laser + 1) % len(self.channels_to_toggle_lasers)
 
         return
 
@@ -295,11 +302,13 @@ class LaserLocker(QWidget):
     def send_setpoint(self, channel, frequency, do_switch = False, wait_time = 0):
 
         if do_switch:
-            switch = 1
-        else:
-            switch = 0
+            self.switch_fiber_channel(channel, wait_time=1)
+#            switch = 1
+#        else:
+#            switch = 0
+        switch = 0
 
-        message = '{0:1d},{1:.9f},{2:1d},{3:3d}'.format(int(channel), float(frequency), int(switch), int(wait_time))
+        message = '{0:1d},{1:.9f},{2:1d},{3:3d}'.format(int(channel), float(frequency), int(switch), int(wait_time-1))
         
         print('Sending new setpoint for channel {1}: {0:.6f}'.format(frequency, channel))
         self.send_message_via_socket(message, self.laser_server_addr, self.laser_server_port)
@@ -346,9 +355,53 @@ class LaserLocker(QWidget):
         btn = self.sender()
         if btn.isChecked() and not self.debug_mode:
             print('Switching fiber switch to channel ...' + str(btn.text()))
-            self.switch_fiber_channel(int(btn.text()), wait_time=None)
+            self.switch_fiber_channel(int(btn.text()), wait_time=1)
 
         return
+
+##########################
+###   PID Monitor UI   ###
+##########################
+
+    def init_PIDMonitorUI(self):
+
+        vbox = QVBoxLayout()
+
+        self.PIDMonitorLines = {5: {}, 6: {}}
+
+        for k in self.opts['pids'].keys():
+            pid = self.opts['pids'][k]
+            self.PIDMonitorLines[k]['output'] = QLineEdit('None')
+            self.PIDMonitorLines[k]['output'].setReadOnly(True)
+            self.PIDMonitorLines[k]['pterm'] = QLineEdit('None')
+            self.PIDMonitorLines[k]['pterm'].setReadOnly(True)
+            self.PIDMonitorLines[k]['iterm'] = QLineEdit('None')
+            self.PIDMonitorLines[k]['iterm'].setReadOnly(True)
+            
+            hbox = QHBoxLayout()
+            hbox.addWidget(QLabel(str(pid['laser']) + ' Output:'))
+            hbox.addWidget(self.PIDMonitorLines[k]['output'])
+            hbox.addWidget(QLabel(str('P:')))
+            hbox.addWidget(self.PIDMonitorLines[k]['pterm'])
+            hbox.addWidget(QLabel(str('I:')))
+            hbox.addWidget(self.PIDMonitorLines[k]['iterm'])
+
+            vbox.addLayout(hbox)
+
+        return vbox
+
+    def PIDMonitor_update(self):
+
+        for k in self.opts['pids'].keys():
+            try:
+                self.PIDMonitorLines[k]['output'].setText('{:.6f}'.format(self.last_output[k]))
+                self.PIDMonitorLines[k]['iterm'].setText('{:.6f}'.format(self.last_iterm[k]))
+                self.PIDMonitorLines[k]['pterm'].setText('{:.6f}'.format(self.last_pterm[k]))
+            except:
+                continue
+                
+        return
+
 
 ###########################
 ###   Get Frequencies   ###
@@ -435,10 +488,9 @@ class LaserLocker(QWidget):
 
         return sock
 
-    def switch_fiber_channel(self, channel, wait_time=None, initial_switch=False):
+    def switch_fiber_channel(self, channel, wait_time=None):
 
-        print(initial_switch) #debug
-        if not initial_switch:
+        if not self.initiating:
             self.pid_arr[self.current_channel].set_auto_mode(False)
         
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -451,14 +503,10 @@ class LaserLocker(QWidget):
         if not wait_time == None:
             time.sleep(wait_time)
 
-        if not initial_switch:
+        if not self.initiating:
             self.current_channel = channel
-            print('last output:', self.last_output) #debug
-            print('last Ki term:', self.last_integral_term)
             # Notice that the last_output argument of the set_auto_mode() method sets the Ki term of the pid, instead of the total output to this value.
-            self.pid_arr[self.current_channel].set_auto_mode(True, last_output=self.last_integral_term[self.current_channel])
-            print('last terms:', self.pid_arr[self.current_channel].components)
-
+            self.pid_arr[self.current_channel].set_auto_mode(True, last_output=self.last_iterm[self.current_channel])
 
         return
         
@@ -497,7 +545,7 @@ class LaserLocker(QWidget):
 
             curr_pid = self.opts['pids'][k]
 
-            self.switch_fiber_channel(curr_pid['wavemeter_channel'], wait_time = 1, initial_switch=True) 
+            self.switch_fiber_channel(curr_pid['wavemeter_channel'], wait_time = 1) 
 
             act_values[curr_pid['wavemeter_channel']] = self.get_frequencies()
             setpoint = act_values[curr_pid['wavemeter_channel']]
@@ -522,6 +570,8 @@ class LaserLocker(QWidget):
                 freq = var['frequency']
                 switch_channel = var['switch_channel']
                 wait_time = var['wait_time']
+                # At least 1s wait time
+                wait_time = max(wait_time, 1)
 
                 if switch_channel == 1:
                     self.switch_fiber_channel(chan, wait_time=wait_time/1000)
@@ -541,14 +591,19 @@ class LaserLocker(QWidget):
                     self.pid_arr[c].setpoint = float(setpoints[c])
                     act_values = self.get_frequencies()
 
+                    # debug
+#                    print('act_freq:', act_values)
+
                     self.last_output[c] = self.pid_arr[c](act_values)
-                    _, self.last_integral_term[c], _ = self.pid_arr[c].components
+                    self.last_pterm[c], self.last_iterm[c], _ = self.pid_arr[c].components
+                    if not self.initiating:
+                        self.PIDMonitor_update()
 
                     self.send_arduino_control(ser[opts['pids'][c]['arduino_no']], self.last_output[c], opts['pids'][c]['DAC_chan'], max_output=opts['pids'][c]['DAC_max_output'])
 
                 elif (setpoints[c] <= 0) and (self.pid_arr[c].auto_mode == True):
                     self.last_output[c] = 0.0
-                    self.last_integral_term[c] = 0.0
+                    self.last_iterm[c] = 0.0
 
         return
 

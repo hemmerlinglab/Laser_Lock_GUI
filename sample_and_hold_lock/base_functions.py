@@ -100,7 +100,10 @@ def send_arduino_control(ser, control, channel, max_output = 4095.0):
 # Switch Fiber Channel
 #############################################################
 
-def switch_fiber_channel(opts, channel, wait_time = None):
+def switch_fiber_channel(opts, channel, wait_time = None, manual_switch = False):
+
+    # switch all PIDs to hold
+
 
     # Create a TCP/IP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -120,8 +123,9 @@ def switch_fiber_channel(opts, channel, wait_time = None):
     if not wait_time == None:
         time.sleep(wait_time)
 
-    return 
+    # switch new PID to sample
 
+    return 
 
 
 #############################################################
@@ -196,7 +200,7 @@ def init_pid(opts):
 
         curr_pid = opts['pids'][k]
     
-        switch_fiber_channel(opts, curr_pid['wavemeter_channel'], wait_time = 1)
+        switch_fiber_channel(opts, curr_pid['wavemeter_channel'], wait_time = 1) 
 
         act_values[curr_pid['wavemeter_channel']] = get_frequencies(opts)
         
@@ -233,6 +237,8 @@ def run_pid(q_arr, ser, pid_arr, current_channel, init_setpoints, opts):
             freq = var['frequency']
             switch_channel = var['switch_channel']
             wait_time = var['wait_time'] # 3300 = 3.3 seconds
+
+            print(chan, freq, switch_channel, wait_time)
 
             if switch_channel == 1:
                 
