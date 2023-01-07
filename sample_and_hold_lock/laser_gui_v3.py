@@ -114,7 +114,7 @@ class LaserLocker(QWidget):
         print('Init PID ...')
         self.pid_arr, init_setpoints = self.init_pid()
 
-        self.switch_fiber_channel(self.opts['fiber_switcher_init_channel'], wait_time = 0)
+        self.switch_fiber_channel(self.opts['fiber_switcher_init_channel'], wait_time = 1)
         q_arr = queue.Queue()
 
         pid_thread = threading.Thread(target=self.run_pid, args=(q_arr,ser,init_setpoints,self.opts), daemon=True)
@@ -149,7 +149,6 @@ class LaserLocker(QWidget):
 
     def sample_and_lock_lasers(self):
 
-        print(self.channels_to_toggle_lasers)
         which_channel = self.channels_to_toggle_lasers[self.current_laser]
         set_point_widget = self.laser_set_points[str(which_channel)]
         new_setpoint = float(set_point_widget.text())
@@ -500,13 +499,19 @@ class LaserLocker(QWidget):
         sock.sendall(str(channel).encode())
         sock.close()
 
-        if not wait_time == None:
-            time.sleep(wait_time)
+        print('sleeping for {}s, the PID is now disabled'.format(wait_time))
+        time.sleep(1)
+        print('Resuming PID')
 
         if not self.initiating:
             self.current_channel = channel
             # Notice that the last_output argument of the set_auto_mode() method sets the Ki term of the pid, instead of the total output to this value.
             self.pid_arr[self.current_channel].set_auto_mode(True, last_output=self.last_iterm[self.current_channel])
+
+        try:
+            time.sleep(wait_time-1)
+        except:
+            print('Wait time should be at least 1s!')
 
         return
         
@@ -516,7 +521,7 @@ class LaserLocker(QWidget):
             connection, client_address = sock.accept()
 
             try:
-                data = connection.recv(21)
+                data = connection.recv(22)
                 data = data.decode()
                 data = data.split(',')
                 data = {
@@ -571,7 +576,7 @@ class LaserLocker(QWidget):
                 switch_channel = var['switch_channel']
                 wait_time = var['wait_time']
                 # At least 1s wait time
-                wait_time = max(wait_time, 1)
+                wait_time = max(wait_time, 1000)
 
                 if switch_channel == 1:
                     self.switch_fiber_channel(chan, wait_time=wait_time/1000)
