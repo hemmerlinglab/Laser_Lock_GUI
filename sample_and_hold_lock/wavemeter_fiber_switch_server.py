@@ -12,6 +12,7 @@ import threading
 
 import queue
 
+from base_functions import switch_fiber_channel
 
 def init_distribution_servers(opts):
     # create conex objects
@@ -53,7 +54,7 @@ def init_distribution_servers(opts):
     return (wlm, dist_sockets, sock_fiber, fib)
 
 
-def run_dist_server(q, sock):    
+def run_dist_server(opts, wlm, q, sock):    
 
     while True:
         # Wait for a connection
@@ -62,8 +63,8 @@ def run_dist_server(q, sock):
 
         try:            
             request = connection.recv(7).decode()
-            #print(request)
 
+            # Frequency of the wavemeter is requested and send back
             if request == 'request':
                 freq = q.get()
 
@@ -76,6 +77,25 @@ def run_dist_server(q, sock):
 
                 # send the data
                 connection.sendall(msg)
+
+            # Calibration of the wavemeter is initiated
+            elif request == 'henecal':
+                
+                # receive hene freq
+                hene_freq = float(connection.recv(10).decode())
+                chan_hene = 4
+
+                switch_fiber_channel(opts, chan_hene, wait_time = 3)
+    
+                wlm.SetExposure(200)
+                time.sleep(1)
+                wlm.Calibration(hene_freq)
+
+                # switch back to previous channel
+                # wait since the wvemeter server will readout the hene frequency
+                # ideally this readout would be stopped while calibrating
+                switch_fiber_channel(opts, 0, wait_time = 3)
+
             else:
                 print('no more data from', client_address)
                 break                       
@@ -88,7 +108,7 @@ def run_dist_server(q, sock):
 
 
 
-def wavemeter_readout(q, wlm, fib, current_channel):
+def wavemeter_readout(q, wlm, fib):
 
 	chans = [0]
 	act_values = [0] * len(chans)
@@ -100,25 +120,14 @@ def wavemeter_readout(q, wlm, fib, current_channel):
 	while True:
 	    for l in range(len(chans)):
                 wlm.Trigger(0)
-                
-                # obtains the actual frequency value
-                #fib.setchan(chans[l])
-                                
-				
-                #time.sleep(0.6)
-                #print(chans[l])
-				
+                				
                 try_trig = wlm.Trigger(3)
 
-                #time.sleep(.01)
+                # obtains the actual frequency value
                 new_freq = wlm.frequency               
                 
-                
-                #act_values[l] = "{0:1d}:{1:10.6f}".format(current_channel, new_freq)
                 act_values[l] = "{0:10.6f}".format(new_freq)
 
-
-                #print(act_values)
                 for k in range(len(q)):
                     q[k].put(act_values)
                 
@@ -131,8 +140,22 @@ def wavemeter_readout(q, wlm, fib, current_channel):
 # Fiber Switcher
 #########################
 
-def run_fiber_switcher_server(sock, fib, wlm, current_channel):
+def run_fiber_switcher_server(sock, fib, wlm):
 
+    # switches the fiber switcher between channels 1-8
+    # if chan = 0, then it switches to the previous channel
+
+    previous_channel = 1
+    current_channel = 1
+
+    channel_exposures = {
+            1 : 100,
+            2 : 150,
+            3 : 100,
+            4 : 100, # HeNe channel
+            5 : 100,
+            6 : 450            
+    }
 
     while True:
         # Wait for a connection
@@ -145,26 +168,26 @@ def run_fiber_switcher_server(sock, fib, wlm, current_channel):
             if data:
                 chan = int(data.decode())
 
-                #print('Changing channel to ' + str(chan))
-                # set exposure time
-                if chan == 1:
-                    wlm.SetExposure(100)
-                elif chan == 2:
-                    wlm.SetExposure(100)
-                elif chan == 3:
-                    wlm.SetExposure(100)
-                elif chan == 4: # HeNe Channel
-                    wlm.SetExposure(100)
-                elif chan == 5:
-                    wlm.SetExposure(450)
-                elif chan == 6:
-                    wlm.SetExposure(450)
+                #print("Previous: " + str(previous_channel))
+                #print(current_channel)
+                #print(chan)
+                #print()
+              
+                if chan == 0:
+                    # if chan == 0, then switch to previous channel
+                    chan = previous_channel
+                    
+                    previous_channel = current_channel
+                    current_channel = chan
                 else:
-                    wlm.SetExposure(100)
+                    previous_channel = current_channel
+                    current_channel = chan
 
+                # set exposure time
+                wlm.SetExposure(channel_exposures[chan])
+
+                # switch channel
                 fib.setchan(chan)
-
-                
 
 
             else:
@@ -212,7 +235,7 @@ for n in range(len(opts['dist_sockets'])):
     q_arr.append(queue.Queue())
 
     # distribution server 
-    dist_server_thread = threading.Thread(target=run_dist_server, args=(q_arr[n], dist_sockets[n],), daemon = True)
+    dist_server_thread = threading.Thread(target=run_dist_server, args=(opts, wlm, q_arr[n], dist_sockets[n],), daemon = True)
     dist_server_thread.start()
 
 
@@ -225,11 +248,11 @@ current_channel = queue.Queue()
 #wavemeter_server_thread.start()
 
 
-fiber_switcher_thread = threading.Thread(target=run_fiber_switcher_server, args=(sock_fiber, fib, wlm, current_channel,), daemon = True)
+fiber_switcher_thread = threading.Thread(target=run_fiber_switcher_server, args=(sock_fiber, fib, wlm,), daemon = True)
 fiber_switcher_thread.start()
 
 
-readout_thread = threading.Thread(target=wavemeter_readout, args=(q_arr, wlm, fib, current_channel,), daemon = True)
+readout_thread = threading.Thread(target=wavemeter_readout, args=(q_arr, wlm, fib,), daemon = True)
 readout_thread.start()
 
 
