@@ -153,7 +153,7 @@ def run_fiber_switcher_server(sock, fib, wlm):
             2 : 150,
             3 : 100,
             4 : 100, # HeNe channel
-            5 : 100,
+            5 : 450,
             6 : 450            
     }
 
