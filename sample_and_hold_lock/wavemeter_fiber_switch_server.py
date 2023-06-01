@@ -87,7 +87,7 @@ def run_dist_server(opts, wlm, q, sock):
 
                 switch_fiber_channel(opts, chan_hene, wait_time = 3)
     
-                wlm.SetExposure(200)
+                wlm.SetExposure(100)
                 time.sleep(1)
                 wlm.Calibration(hene_freq)
 
