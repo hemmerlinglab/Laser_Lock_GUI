@@ -154,7 +154,9 @@ def run_fiber_switcher_server(sock, fib, wlm):
             3 : 100,
             4 : 100, # HeNe channel
             5 : 450,
-            6 : 450            
+            6 : 450,
+		    7 : 25,
+			8 : 25
     }
 
     while True:
