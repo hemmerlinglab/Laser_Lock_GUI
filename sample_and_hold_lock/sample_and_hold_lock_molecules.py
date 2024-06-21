@@ -19,9 +19,10 @@ opts = {
         'fiber_server_port' : 65000,
         'pids' : {
             1 : {'laser' : 391, 'wavemeter_channel' : 1, 'Kp' : -10, 'Ki' : -5000, 'arduino_no' : 0, 'DAC_chan' : 1, 'DAC_max_output' : 4095.0},
-            2 : {'laser' : 398, 'wavemeter_channel' : 2, 'Kp' : -10, 'Ki' : -10000, 'arduino_no' : 0, 'DAC_chan' : 2, 'DAC_max_output' : 4095.0},
-            #3 : {'laser' : 1046, 'wavemeter_channel' : 3, 'Kp' : 10, 'Ki' : 100000, 'arduino_no' : 1, 'DAC_chan' : 2, 'DAC_max_output' : 4095.0},
-			3 : {'laser' : 1046, 'wavemeter_channel' : 7, 'Kp' : 10, 'Ki' : 100000, 'arduino_no' : 1, 'DAC_chan' : 2, 'DAC_max_output' : 4095.0},
+            2 : {'laser' : 398, 'wavemeter_channel' : 2, 'Kp' : -5, 'Ki' : -5000, 'arduino_no' : 0, 'DAC_chan' : 2, 'DAC_max_output' : 4095.0},
+            3 : {'laser' : 1046, 'wavemeter_channel' : 3, 'Kp' : 10, 'Ki' : 100000, 'arduino_no' : 1, 'DAC_chan' : 2, 'DAC_max_output' : 4095.0},
+			#7 : {'laser' : 1046, 'wavemeter_channel' : 7, 'Kp' : 10, 'Ki' : 100000, 'arduino_no' : 1, 'DAC_chan' : 2, 'DAC_max_output' : 4095.0},
+                        8 : {'laser' : 1046, 'wavemeter_channel' : 8, 'Kp' : 10, 'Ki' : 100000, 'arduino_no' : 1, 'DAC_chan' : 1, 'DAC_max_output' : 4095.0}
             },
         'fiber_switcher_init_channel' : 2
         }

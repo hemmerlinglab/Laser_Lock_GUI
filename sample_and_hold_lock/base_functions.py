@@ -266,8 +266,8 @@ def run_pid(q_arr, ser, pid_arr, current_channel, init_setpoints, opts):
         except queue.Empty:            
             #print('error2')
             pass
-
-
+			        
+		
         # loop over all channels
         for c in pid_arr.keys():
     
