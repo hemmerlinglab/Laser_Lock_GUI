@@ -97,7 +97,7 @@ def run_dist_server(opts, wlm, q, sock):
                 switch_fiber_channel(opts, 0, wait_time = 3)
 
             # Calibration of the wavemeter is initiated
-            elif request == 'daeneryscal':
+            elif request == 'daecali':
                 
                 # receive hene freq
                 daenerys_freq       = float(connection.recv(10).decode())
