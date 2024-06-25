@@ -96,6 +96,24 @@ def run_dist_server(opts, wlm, q, sock):
                 # ideally this readout would be stopped while calibrating
                 switch_fiber_channel(opts, 0, wait_time = 3)
 
+            # Calibration of the wavemeter is initiated
+            elif request == 'daeneryscal':
+                
+                # receive hene freq
+                daenerys_freq       = float(connection.recv(10).decode())
+                chan_green_daenerys = 7
+
+                switch_fiber_channel(opts, chan_green_daenerys, wait_time = 3)
+    
+                wlm.SetExposure(10)
+                time.sleep(1)
+                wlm.Calibration(daenerys_freq)
+
+                # switch back to previous channel
+                # wait since the wvemeter server will readout the hene frequency
+                # ideally this readout would be stopped while calibrating
+                switch_fiber_channel(opts, old_channel, wait_time = 3)
+
             else:
                 print('no more data from', client_address)
                 break                       
