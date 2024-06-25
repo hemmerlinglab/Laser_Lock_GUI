@@ -102,6 +102,7 @@ def run_dist_server(opts, wlm, q, sock):
                 # receive hene freq
                 daenerys_freq       = float(connection.recv(10).decode())
                 chan_green_daenerys = 7
+                old_channel         = 3
 
                 switch_fiber_channel(opts, chan_green_daenerys, wait_time = 3)
     
