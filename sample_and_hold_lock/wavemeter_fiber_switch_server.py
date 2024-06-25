@@ -170,11 +170,11 @@ def run_fiber_switcher_server(sock, fib, wlm):
     channel_exposures = {
             1 : 100,
             2 : 150,
-            3 : 100,
+            3 : 100, # Daenerys IR
             4 : 100, # HeNe channel
             5 : 450,
             6 : 450,
-		    7 : 25,
+		    7 : 10,  # Daenerys Green
 			8 : 25
     }
 
