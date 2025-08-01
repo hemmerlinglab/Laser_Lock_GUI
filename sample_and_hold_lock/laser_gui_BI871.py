@@ -3,8 +3,9 @@
 ##################################
 
 import sys
-from PyQt5.QtWidgets import QWidget, QApplication, QHBoxLayout, QVBoxLayout, QLineEdit, QSpinBox, QLabel
+from PyQt6.QtWidgets import QWidget, QApplication, QHBoxLayout, QVBoxLayout, QLineEdit, QSpinBox, QLabel
 import socket
+from bristol_instruments import BI871
 
 from simple_pid import PID
 import serial
@@ -32,8 +33,8 @@ class LaserLocker(QWidget):
         # MOD: eliminate laser server addr and port outside opts
         self.opts = {
                 'arduino_com_ports': {0: 'COM5'},
-                'wavemeter_server_ip': '192.168.42.20',
-                'wavemeter_server_port': 62500,
+                'wavemeter_ip': '192.168.42.168',
+                'wavemeter_port': 23,
                 'setpoint_server_ip': '192.168.42.136',
                 'setpoint_server_port': 63700,
                 'pids': {
@@ -67,6 +68,10 @@ class LaserLocker(QWidget):
         ser = self.init_arduinos(com_ports = self.opts['arduino_com_ports'])
         sock = self.setup_setpoint_server()
 
+        print('Init Wavemeter ...')
+        self.wlm_lock = threading.Lock()
+        self.wavemeter = BI871(self.opts['wavemeter_ip'], self.opts['wavemeter_port'])
+
         print('Init PID ...')
         self.pid_arr, init_setpoints = self.init_pid()
 
@@ -84,7 +89,7 @@ class LaserLocker(QWidget):
         self.setGeometry(self.left, self.top, self.width, self.height)
         self.layout = QVBoxLayout()
 
-        hbox_freq_monitor = self.init_freqMonitorUI()
+        hbox_freq_monitor = self.init_FreqMonitorUI()
         hbox_lasers = self.init_laserUI()
         vbox_PID_monitor = self.init_PIDMonitorUI()
 
@@ -98,29 +103,29 @@ class LaserLocker(QWidget):
 ###   Frequency Monitor UI   ###
 ################################
 
-    def init_freqMonitorUI(self):
+    def init_FreqMonitorUI(self):
 
         hbox = QHBoxLayout()
 
-        self.freqMonitorLines = {'422': {}, '390': {}}
+        self.FreqMonitorLines = {'422': {}, '390': {}}
 
         for k in range(len(self.opts['lasers'])):
 
             laser = self.opts['lasers'][k]
-            self.freqMonitorLines[laser['id']] = QLineEdit('None')
-            self.freqMonitorLines[laser['id']].setReadOnly(True)
+            self.FreqMonitorLines[laser['id']] = QLineEdit('None')
+            self.FreqMonitorLines[laser['id']].setReadOnly(True)
 
             vbox = QVBoxLayout()
             vbox.addWidget(QLabel('Act Frequency (Laser ' + str(laser['id']) + '):'))
-            vbox.addWidget(self.freqMonitorLines[laser['id']])
+            vbox.addWidget(self.FreqMonitorLines[laser['id']])
 
             hbox.addLayout(vbox)
 
         return hbox
 
-    def freqMonitor_update(self, laserid, freq):
+    def FreqMonitor_update(self, laserid, freq):
 
-        self.freqMonitorLines[laserid].setText('{:.5f}'.format(freq))
+        self.FreqMonitorLines[laserid].setText('{:.5f}'.format(freq))
 
         return
 
@@ -251,27 +256,27 @@ class LaserLocker(QWidget):
 
     def get_frequencies(self):
     
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_address = (self.opts['wavemeter_server_ip'], self.opts['wavemeter_server_port'])
-        sock.connect(server_address)
-    
+        # Try to read laser frequency with BI871 wavemeter
         try:
-            # Send data
-            message = 'request'
-            sock.sendall(message.encode())
+            with self.wlm_lock:
+                freq = self.wavemeter.get_frequency()
+            laserid = self.process_frequency(freq)
+            return laserid, freq
     
-            len_msg = int(sock.recv(2).decode())
-            data = sock.recv(len_msg)
-            data = data.decode()
-            output = float(data)
-    
-            laserid = self.process_frequency(output)
-                
-        finally:
-            #print('closing socket')
-            sock.close()
-    
-        return laserid, output
+        # Handle the case the wavemeter is unexpectedly disconnected
+        except (EOFError, OSError, ConnectionResetError, BrokenPipeError):
+            print("Wavemeter disconnected, reconnecting ...")
+            ok = self.wavemeter.reconnect()
+            if ok:
+                print("Reconnected!")
+                return 0, 0
+            else:
+                raise
+
+        # Handle RuntimeError
+        except RuntimeError as e:
+            print("Wavemeter query failed:", e)
+            return 0, 0
 
     def process_frequency(self, freq):
 
@@ -288,7 +293,7 @@ class LaserLocker(QWidget):
             laser = 0
 
         return laser
-        
+
 #####################################
 ###   Arduino Control Functions   ###
 #####################################
@@ -318,8 +323,8 @@ class LaserLocker(QWidget):
                                     timeout=1)
     
             if init_output:
-                send_arduino_control(ser, 0.0, 1)
-                send_arduino_control(ser, 0.0, 2)
+                self.send_arduino_control(ser, 0.0, 1)
+                self.send_arduino_control(ser, 0.0, 2)
     
             ser_connections[port] = ser
 
@@ -402,7 +407,6 @@ class LaserLocker(QWidget):
 
     def run_pid(self, q_arr, ser, init_setpoints):
 
-        act_values = {}
         setpoints = init_setpoints
         last_id = '390'
         
@@ -421,7 +425,7 @@ class LaserLocker(QWidget):
             except queue.Empty:
                 pass
 
-            laserid, act_values = self.get_frequencies()
+            laserid, act_freq = self.get_frequencies()
             
             if laserid == 0:
                 self.pid_arr['422'].set_auto_mode(False)
@@ -429,11 +433,11 @@ class LaserLocker(QWidget):
             
             elif laserid == last_id:
                 self.pid_arr[laserid].setpoint = float(setpoints[laserid])
-                self.last_output[laserid] = self.pid_arr[laserid](act_values)
+                self.last_output[laserid] = self.pid_arr[laserid](act_freq)
                 self.last_pterm[laserid], self.last_iterm[laserid], _ = self.pid_arr[laserid].components
 
                 self.PIDMonitor_update()
-                self.freqMonitor_update(laserid, act_values)
+                self.FreqMonitor_update(laserid, act_freq)
 
                 self.send_arduino_control(ser[self.opts['pids'][laserid]['arduino_no']], self.last_output[laserid], self.opts['pids'][laserid]['DAC_chan'], max_output=self.opts['pids'][laserid]['DAC_max_output'])
 
@@ -443,21 +447,29 @@ class LaserLocker(QWidget):
                 self.pid_arr[laserid].set_auto_mode(True, last_output=self.last_iterm[laserid])
 
                 self.pid_arr[laserid].setpoint = float(setpoints[laserid])
-                self.last_output[laserid] = self.pid_arr[laserid](act_values)
+                self.last_output[laserid] = self.pid_arr[laserid](act_freq)
                 self.last_pterm[laserid], self.last_iterm[laserid], _ = self.pid_arr[laserid].components
 
                 self.PIDMonitor_update()
-                self.freqMonitor_update(laserid, act_values)
+                self.FreqMonitor_update(laserid, act_freq)
 
                 self.send_arduino_control(ser[self.opts['pids'][laserid]['arduino_no']], self.last_output[laserid], self.opts['pids'][laserid]['DAC_chan'], max_output=self.opts['pids'][laserid]['DAC_max_output'])
 
             last_id = laserid
 
         return
+    
+    def closeEvent(self, event):
+
+        try:
+            self.wavemeter.close()
+        except Exception:
+            pass
+        super().closeEvent(event)
 
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = LaserLocker()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
