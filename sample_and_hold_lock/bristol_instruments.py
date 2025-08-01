@@ -14,8 +14,13 @@ class BI871:
         Initialize the Telnet connection to the instrument.
         """
 
+        # Record host and port
+        self.host = HOST
+        self.port = PORT
+        self.timeout = timeout
+
         # Create connection to the device
-        self.tn = telnetlib.Telnet(HOST, PORT, timeout=timeout)
+        self.tn = telnetlib.Telnet(self.host, self.port, timeout=self.timeout)
 
         # Clear welcome messages (if any)
         time.sleep(0.2)
@@ -38,6 +43,31 @@ class BI871:
             raise RuntimeError(f"Failed to connect or unexpected IDN. Feedback: {msg}")
 
 
+    def reconnect(self, retries = 3, delay = 0.5):
+
+        """
+        Try to restart connection when it is lost
+        """
+
+        for _ in range(retries):
+            # Try to close current connection
+            try:
+                self.close()
+            except Exception:
+                pass
+            # Try to establish new connection
+            try:
+                self.tn = telnetlib.Telnet(self.host, self.port, timeout=self.timeout)
+                time.sleep(0.2)
+                self.tn.read_very_eager()
+                self.check_connection()
+                return True
+            except Exception:
+                time.sleep(delay)
+
+        return False
+
+
     def send(self, message):
 
         """
@@ -50,7 +80,7 @@ class BI871:
         self.tn.write(message.encode("ascii"))
 
 
-    def query(self, message, wait=0.1):
+    def query(self, message, timeout=0.1):
 
         """
         Send a command and read the reply.
@@ -59,8 +89,7 @@ class BI871:
         """
 
         self.send(message)
-        time.sleep(wait)
-        return self.tn.read_until(b'\n').decode("ascii")
+        return self.tn.read_until(b'\n', timeout).decode("ascii")
 
 
     def get_frequency(self):
@@ -73,7 +102,7 @@ class BI871:
             RuntimeError: If the instrument does not return a valid number.
         """
         
-        response = self.query(":MEAS:FREQ?")
+        response = self.query(":MEAS:FREQ?", timeout=0.1)
         try:
             return float(response)
         except ValueError:
