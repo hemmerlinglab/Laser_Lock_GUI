@@ -3,7 +3,7 @@
 ##################################
 
 import sys
-from PyQt6.QtWidgets import QWidget, QApplication, QHBoxLayout, QVBoxLayout, QLineEdit, QSpinBox, QLabel
+from PyQt5.QtWidgets import QWidget, QApplication, QHBoxLayout, QVBoxLayout, QLineEdit, QSpinBox, QLabel
 import socket
 from bristol_instruments import BI871
 
@@ -11,6 +11,7 @@ from simple_pid import PID
 import serial
 import queue
 import threading
+import time
 
 from functools import partial
 
@@ -25,8 +26,8 @@ class LaserLocker(QWidget):
         super().__init__()
 
         self.initOpts()
-        self.initThreads()
         self.initUI()
+        self.initThreads()
 
     def initOpts(self):
 
@@ -35,7 +36,7 @@ class LaserLocker(QWidget):
                 'arduino_com_ports': {0: 'COM5'},
                 'wavemeter_ip': '192.168.42.168',
                 'wavemeter_port': 23,
-                'setpoint_server_ip': '192.168.42.136',
+                'setpoint_server_ip': '192.168.42.26',
                 'setpoint_server_port': 63700,
                 'pids': {
                     '422': {'laser': '422', 'Kp': 10, 'Ki': 1200, 'arduino_no': 0, 'DAC_chan': 1, 'DAC_max_output': 4095.0},
@@ -74,6 +75,7 @@ class LaserLocker(QWidget):
 
         print('Init PID ...')
         self.pid_arr, init_setpoints = self.init_pid()
+        self.running = True
 
         q_arr = queue.Queue()
 
@@ -107,7 +109,7 @@ class LaserLocker(QWidget):
 
         hbox = QHBoxLayout()
 
-        self.FreqMonitorLines = {'422': {}, '390': {}}
+        self.FreqMonitorLines = {}
 
         for k in range(len(self.opts['lasers'])):
 
@@ -410,7 +412,7 @@ class LaserLocker(QWidget):
         setpoints = init_setpoints
         last_id = '390'
         
-        while True:
+        while self.running:
 
             try:
                 var = q_arr.get(block=False)
@@ -461,6 +463,10 @@ class LaserLocker(QWidget):
     
     def closeEvent(self, event):
 
+        # Stop the PID thread
+        self.running = False
+        time.sleep(0.1)
+        
         try:
             self.wavemeter.close()
         except Exception:
@@ -471,5 +477,5 @@ class LaserLocker(QWidget):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = LaserLocker()
-    sys.exit(app.exec())
+    sys.exit(app.exec_())
 
