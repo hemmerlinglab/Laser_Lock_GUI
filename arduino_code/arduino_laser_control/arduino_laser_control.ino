@@ -11,24 +11,31 @@ char buf[5];
 void setup()
 {
   //pinMode(analogPin, OUTPUT);   // sets the pin as output
-   analogWriteResolution(12);
-   Serial.begin(9600);
-   analogWrite(DAC0,2048);
-   analogWrite(DAC1,2048);
+  analogWriteResolution(12);
+  Serial.begin(9600);
+
+  //Debug
+  pinMode(LED_BUILTIN, OUTPUT);
+  //digitalWrite(LED_BUILTIN, HIGH);
+  //delay(2000);
+  digitalWrite(LED_BUILTIN, LOW);
+
+  //analogWrite(DAC0,2048);
+  //analogWrite(DAC1,2048);
 }
 
 int conv(char ch)
 {
   switch(int(ch)) {
     case 176 : return 0; break;
-    case 49 : return 1; break;
-    case 50 : return 2; break;
+    case 49  : return 1; break;
+    case 50  : return 2; break;
     case 179 : return 3; break;
-    case 52 : return 4; break;
+    case 52  : return 4; break;
     case 181 : return 5; break;
     case 182 : return 6; break;
-    case 55 : return 7; break;
-    case 56 : return 8; break;
+    case 55  : return 7; break;
+    case 56  : return 8; break;
     case 185 : return 9; break;
   }
 }
@@ -52,6 +59,10 @@ void loop()
                 if(chan==2){
                   analogWrite(DAC1,val);
                 }
+
+                // Experimental: Save persist Flash
+                //persist_save();
+                //if (chan==9) { persist_save(); }
                   // analogRead values go from 0 to 1023, analogWrite values from 0 to 255
               
         }
