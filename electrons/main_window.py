@@ -294,5 +294,20 @@ class MainWindow(QWidget):
         offset_line.blockSignals(False)
 
     def closeEvent(self, event):
-        self._locker.close()
+        # Shutdown is handled by app.aboutToQuit in main.py; avoid double-close
         super().closeEvent(event)
+
+
+if __name__ == "__main__":
+    import sys
+    from PyQt5.QtWidgets import QApplication
+
+    from config import CONFIG
+    from laser_locker import LaserLocker
+
+    app = QApplication(sys.argv)
+    locker = LaserLocker(CONFIG)
+    app.aboutToQuit.connect(locker.close)
+    win = MainWindow(CONFIG, locker)
+    win.show()
+    sys.exit(app.exec_())

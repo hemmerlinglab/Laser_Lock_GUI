@@ -9,6 +9,7 @@ All data comes from LaserLocker (wavemeter reading, current setpoint).
 """
 
 import socket
+import threading
 
 
 class SetpointServer:
@@ -19,27 +20,58 @@ class SetpointServer:
         self._host = host
         self._port = port
         self._locker = locker
+        self._stop_event = threading.Event()
+        self._server_socket = None
+        self._active_connection = None
+
+    def stop(self):
+        """Request the server to stop."""
+
+        # Set the stop event flag to terminate run loop
+        self._stop_event.set()
+
+        # Close binding socket to stop accepting new connections
+        try:
+            if self._server_socket:
+                self._server_socket.close()
+        except Exception:
+            pass
+        
+        # Close connection socket to stop communication with client
+        try:
+            if self._active_connection:
+                self._active_connection.close()
+        except Exception:
+            pass
 
     def run(self):
-        """Blocking. Run in a daemon thread from main.py."""
-
+        """Run the server."""
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server_socket.bind((self._host, self._port))
         server_socket.listen(1)
+        server_socket.settimeout(1.0)
+    
+        self._server_socket = server_socket
 
-        while True:
+        while not self._stop_event.is_set():
             try:
                 connection, client_address = server_socket.accept()
+                connection.settimeout(1.0)
+            except socket.timeout:
+                continue
             except OSError as error:
+                if self._stop_event.is_set():
+                    break
                 print(f"[setpoint_server] accept() error: {error}")
                 continue
 
             print(f"[setpoint_server] connection from {client_address}")
+            self._active_connection = connection
 
             try:
                 with connection.makefile("r", encoding="utf-8", newline="") as read_file:
-                    while True:
+                    while not self._stop_event.is_set():
                         try:
                             line = read_file.readline()
                             if not line:
@@ -47,6 +79,8 @@ class SetpointServer:
                             message = line.rstrip("\r\n")
                             reply = self._process_message(message)
                             connection.sendall(reply)
+                        except socket.timeout:
+                            continue
                         except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
                             print(f"[setpoint_server] client {client_address} disconnected")
                             break
@@ -58,6 +92,10 @@ class SetpointServer:
                     connection.close()
                 except Exception:
                     pass
+                finally:
+                    self._active_connection = None
+
+        print("[setpoint_server] setpoint server safely closed.")
 
     def _process_message(self, message):
         """Handle one line: query freq/setpoint, or submit setpoint. Reply "0" on failure."""
@@ -74,19 +112,38 @@ class SetpointServer:
 
         # setpoint request: "laser_id,set?", return "laser_id,frequency" (success) or "0" (failure)
         elif argument == "set?":
-            # current lock target (setpoint) for this laser
-            try:
-                value = self._locker.get_setpoint(laser_id)
-                return f"{laser_id},{value:.6f}\n".encode()
-            except (KeyError, TypeError):
+            value = self._locker.get_setpoint(laser_id)
+            if value is None:
                 return b"0\n"
+            return f"{laser_id},{value:.6f}\n".encode()
 
         # setpoint update: "laser_id,frequency", return "1" (success) or "0" (failure)
         else:
-            # new lock target (setpoint) from remote client
+            if not self._locker.is_valid_laser_id(laser_id):
+                return b"0\n"
             try:
                 frequency = float(argument)
             except ValueError:
                 return b"0\n"
             self._locker.submit_setpoint(laser_id, frequency)
             return b"1\n"
+
+
+if __name__ == "__main__":
+
+    import threading
+    from laser_locker import LaserLocker
+    from config import CONFIG
+
+    locker = LaserLocker(CONFIG)
+    server = SetpointServer(
+        CONFIG["setpoint_server_ip"],
+        CONFIG["setpoint_server_port"],
+        locker,
+    )
+    try:
+        locker.start()
+        server.run()
+    except KeyboardInterrupt:
+        server.stop()
+        locker.close()

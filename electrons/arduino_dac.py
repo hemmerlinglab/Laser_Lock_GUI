@@ -40,10 +40,20 @@ class ArduinoDAC:
                 if laser_id in channel_config:
                     self.set_output(laser_id, value)
 
+    def write(self, arduino_no, data):
+        """
+        Send raw data to the given Arduino. Simple passthrough for testing or custom protocol.
+        data: str or bytes; if str, encoded as ASCII.
+        """
+        if arduino_no not in self._serial_ports:
+            raise KeyError(f"arduino_no {arduino_no} not in {list(self._serial_ports.keys())}")
+        payload = data.encode("ascii") if isinstance(data, str) else data
+        self._serial_ports[arduino_no].write(payload)
+
     def set_output(self, laser_id, control_value):
         """Write PID output (-10~10) to DAC. control_value drives piezo/current for this laser."""
         channel_params = self._channel_config[laser_id]
-        serial_port = self._serial_ports[channel_params["arduino_no"]]
+        arduino_no = channel_params["arduino_no"]
         dac_channel = channel_params["DAC_chan"]
         max_output = channel_params["DAC_max_output"]
 
@@ -51,7 +61,7 @@ class ArduinoDAC:
         # ugly protocol, maybe improve later
         raw_value = int(max_output / 20.0 * control_value + max_output / 2.0)
         message = raw_value * 10 + dac_channel
-        serial_port.write(f"{message:05d}".encode())
+        self.write(arduino_no, f"{message:05d}")
 
     def close(self):
         """Close all serial ports."""
@@ -60,3 +70,11 @@ class ArduinoDAC:
                 serial_port.close()
             except Exception:
                 pass
+
+
+if __name__ == "__main__":
+    from config import CONFIG
+
+    dac = ArduinoDAC(CONFIG["arduino_com_ports"], {}, None)
+    dac.write(0, "00001")
+    dac.close()

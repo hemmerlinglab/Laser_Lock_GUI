@@ -40,7 +40,7 @@ class LaserLocker(QObject):
         super().__init__()
         self._config = config
         self._setpoint_queue = queue.Queue()  # GUI/remote setpoint updates
-        self._running = True
+        self._running = False
 
         self._last_pid_output = {laser_id: 0.0 for laser_id in config["pids"]}
         self._last_frequency = {laser_id: None for laser_id in config["pids"]}
@@ -66,17 +66,6 @@ class LaserLocker(QObject):
             config["pids"],
             initial_outputs=self._last_pid_output,
         )
-
-        print("Init PID ...")
-        self._pid_controllers, setpoints = self._initialize_pid()
-        for laser_id, setpoint in setpoints.items():
-            self.setpoint_changed.emit(laser_id, setpoint)
-
-        # main loop: read wavemeter → run PID → send to DAC
-        self._lock_thread = threading.Thread(
-            target=self._run_lock_loop, args=(setpoints,), daemon=True
-        )
-        self._lock_thread.start()
 
     def _read_frequency(self):
         """Read wavemeter (THz), infer which laser from frequency range."""
@@ -124,7 +113,10 @@ class LaserLocker(QObject):
 
     def _run_lock_loop(self, setpoints):
         """Loop: apply setpoint updates → read wavemeter → identify laser → run PID for that laser → DAC."""
-        last_laser_id = list(self._config["pids"].keys())[-1]  # 390 when fiber switch gives 422 then 390
+        pid_keys = list(self._config["pids"].keys())
+        if not pid_keys:
+            return
+        last_laser_id = pid_keys[-1]  # 390 when fiber switch gives 422 then 390
 
         while self._running:
             try:
@@ -173,6 +165,21 @@ class LaserLocker(QObject):
         self.frequency_changed.emit(laser_id, measured_frequency)
         self._dac.set_output(laser_id, self._last_pid_output[laser_id])
 
+    def start(self):
+        if self._running:
+            return
+
+        self._pid_controllers, self._setpoints = self._initialize_pid()
+        for laser_id, setpoint in self._setpoints.items():
+            self.setpoint_changed.emit(laser_id, setpoint)
+
+        self._lock_thread = threading.Thread(
+            target=self._run_lock_loop, args=(self._setpoints,), daemon=True
+        )
+
+        self._running = True
+        self._lock_thread.start()
+
     def get_frequency(self, laser_id):
         """Latest wavemeter reading (THz) for this laser, or None if not seen yet."""
         with self._frequency_lock:
@@ -180,26 +187,53 @@ class LaserLocker(QObject):
 
     def get_setpoint(self, laser_id):
         """Current lock target (THz) for this laser."""
-        return self._pid_controllers[laser_id].setpoint
+        if not self._running:
+            return None
+        try:
+            return self._pid_controllers[laser_id].setpoint
+        except KeyError:
+            return None
 
     def submit_setpoint(self, laser_id, frequency):
         """Enqueue new lock target from GUI or remote (setpoint_server)."""
+        if laser_id not in self._config["pids"]:
+            return
         self._setpoint_queue.put({"laser_id": laser_id, "frequency": frequency})
+
+    def is_valid_laser_id(self, laser_id):
+        """Whether this laser_id is configured (for remote server validation)."""
+        return laser_id in self._config["pids"]
 
     def close(self):
         """Stop loop, save PID output to file (for next launch), close wavemeter and DAC."""
+        was_running = self._running
         self._running = False
-        time.sleep(0.15)
-
-        state_path = Path(__file__).resolve().parent / self._config["last_pid_status"]
+        if was_running and getattr(self, "_lock_thread", None) is not None and self._lock_thread.is_alive():
+            self._lock_thread.join(timeout=2.0)
+        if was_running:
+            state_path = Path(__file__).resolve().parent / self._config["last_pid_status"]
+            try:
+                with open(state_path, "w", encoding="utf-8") as state_file:
+                    json.dump(self._last_pid_output, state_file)
+            except Exception:
+                pass
         try:
-            with open(state_path, "w", encoding="utf-8") as state_file:
-                json.dump(self._last_pid_output, state_file)
+            self._dac.close()
         except Exception:
             pass
-
-        self._dac.close()
         try:
             self._wavemeter.close()
         except Exception:
             pass
+
+
+if __name__ == "__main__":
+
+    from config import CONFIG
+
+    locker = LaserLocker(CONFIG)
+
+    try:
+        locker.start()
+    except KeyboardInterrupt:
+        locker.close()
