@@ -1,6 +1,6 @@
 """
 LaserLocker: central lock controller. Reads wavemeter → identifies laser by frequency range →
-runs PID → outputs to DAC. MainWindow and SetpointServer only talk to LaserLocker.
+runs PID → outputs to DAC. MainWindow and LaserServer only talk to LaserLocker.
 """
 
 import json
@@ -15,14 +15,15 @@ from bristol_instruments import BI871
 from simple_pid import PID
 
 from arduino_dac import ArduinoDAC
+from servo_motor import LaserSwitcher
 
 
-def _frequency_to_laser_id(frequency):
-    """Which laser is the wavemeter seeing? 422 nm: 708–710 THz, 390 nm: 766–770 THz."""
-    if 708 < frequency < 710:
-        return "422"
-    if 766 < frequency < 770:
-        return "390"
+def _frequency_to_laser_id(config, frequency):
+    """Which laser is the wavemeter seeing? Ranges from config["lasers"]."""
+    for laser_id, params in config["lasers"].items():
+        lo, hi = params["freq_min"], params["freq_max"]
+        if lo < frequency < hi:
+            return laser_id
     return 0
 
 
@@ -42,11 +43,11 @@ class LaserLocker(QObject):
         self._setpoint_queue = queue.Queue()  # GUI/remote setpoint updates
         self._running = False
 
-        self._last_pid_output = {laser_id: 0.0 for laser_id in config["pids"]}
-        self._last_frequency = {laser_id: None for laser_id in config["pids"]}
+        self._last_pid_output = {laser_id: 0.0 for laser_id in config["lasers"]}
+        self._last_frequency = {laser_id: None for laser_id in config["lasers"]}
         self._frequency_lock = threading.Lock()
-        self._last_proportional_term = {laser_id: None for laser_id in config["pids"]}
-        self._last_integral_term = {laser_id: None for laser_id in config["pids"]}
+        self._last_proportional_term = {laser_id: None for laser_id in config["lasers"]}
+        self._last_integral_term = {laser_id: None for laser_id in config["lasers"]}
 
         # load last PID output so DAC starts at same value (no frequency jump on relaunch)
         state_path = Path(__file__).resolve().parent / config["last_pid_status"]
@@ -63,16 +64,25 @@ class LaserLocker(QObject):
         self._wavemeter_lock = threading.Lock()
         self._dac = ArduinoDAC(  # PID output → piezo/current
             config["arduino_com_ports"],
-            config["pids"],
+            config["lasers"],
             initial_outputs=self._last_pid_output,
         )
+        self._switcher = None
+        if "servo_com_port" in config:
+            try:
+                self._switcher = LaserSwitcher(config["servo_com_port"], config["lasers"])
+            except Exception as error:
+                print(f"[laser_locker] Servo motor not connected, running without switching: {error}")
+        self._switching = False
+        self._last_active_laser_id = None
+        self._active_laser_lock = threading.Lock()
 
     def _read_frequency(self):
         """Read wavemeter (THz), infer which laser from frequency range."""
         try:
             with self._wavemeter_lock:
                 frequency = self._wavemeter.get_frequency()
-            laser_id = _frequency_to_laser_id(frequency)
+            laser_id = _frequency_to_laser_id(self._config, frequency)
             return laser_id, frequency
         except (EOFError, OSError, ConnectionResetError, BrokenPipeError):
             print("Wavemeter disconnected, reconnecting ...")
@@ -85,11 +95,18 @@ class LaserLocker(QObject):
             return 0, 0.0
 
     def _initialize_pid(self):
-        """Set up PID for each laser. Waits until wavemeter sees that laser, uses its current freq as initial setpoint."""
+        """Set up PID for each laser. Auto-switches to each laser (if servo available), waits until wavemeter sees it."""
         pid_controllers = {}
         setpoints = {}
-        for laser_id, pid_config in self._config["pids"].items():
-            print(f"Initializing PID on laser {laser_id}: unblock this laser so wavemeter can see it.")
+        for laser_id, laser_config in self._config["lasers"].items():
+            pid_config = laser_config["pid"]
+            if self._switcher is not None:
+                print(f"Initializing PID on laser {laser_id}: switching to this laser ...")
+                self._switcher.switch_to_laser(laser_id)
+                time.sleep(1.0)
+            else:
+                print(f"Initializing PID on laser {laser_id}: unblock this laser so wavemeter can see it.")
+            # Wait until wavemeter sees this laser (can hang if laser is off)
             while True:
                 read_laser_id, frequency = self._read_frequency()
                 if read_laser_id == laser_id:
@@ -113,10 +130,10 @@ class LaserLocker(QObject):
 
     def _run_lock_loop(self, setpoints):
         """Loop: apply setpoint updates → read wavemeter → identify laser → run PID for that laser → DAC."""
-        pid_keys = list(self._config["pids"].keys())
+        pid_keys = list(self._config["lasers"].keys())
         if not pid_keys:
             return
-        last_laser_id = pid_keys[-1]  # 390 when fiber switch gives 422 then 390
+        last_laser_id = pid_keys[-1]
 
         while self._running:
             try:
@@ -130,12 +147,14 @@ class LaserLocker(QObject):
                 pass
 
             laser_id, measured_frequency = self._read_frequency()
-            if laser_id in ("422", "390"):  # valid laser; 0 = fiber switch between lasers or invalid
+            if laser_id in self._config["lasers"]:  # valid laser; 0 = fiber switch or invalid
                 with self._frequency_lock:
                     self._last_frequency[laser_id] = measured_frequency
+                with self._active_laser_lock:
+                    self._last_active_laser_id = laser_id
 
-            if laser_id == 0:
-                # wavemeter saw neither 422 nor 390 (e.g. switching); hold last output
+            if self._switching or laser_id == 0:
+                # switching in progress or wavemeter saw no configured laser: disable all PIDs
                 for pid in self._pid_controllers.values():
                     pid.set_auto_mode(False)
             elif laser_id == last_laser_id:
@@ -195,14 +214,33 @@ class LaserLocker(QObject):
             return None
 
     def submit_setpoint(self, laser_id, frequency):
-        """Enqueue new lock target from GUI or remote (setpoint_server)."""
-        if laser_id not in self._config["pids"]:
+        """Enqueue new lock target from GUI or remote (laser_server)."""
+        if laser_id not in self._config["lasers"]:
             return
         self._setpoint_queue.put({"laser_id": laser_id, "frequency": frequency})
 
     def is_valid_laser_id(self, laser_id):
         """Whether this laser_id is configured (for remote server validation)."""
-        return laser_id in self._config["pids"]
+        return laser_id in self._config["lasers"]
+
+    def get_current_laser(self):
+        """Laser id currently seen by wavemeter (from lock loop), or None if unknown."""
+        with self._active_laser_lock:
+            return self._last_active_laser_id
+
+    def switch_laser(self, laser_id):
+        """Safely switch to laser_id: disable all PIDs, switch fiber, wait, then let lock loop re-enable."""
+        if laser_id not in self._config["lasers"]:
+            return
+        if self._switcher is None:
+            return
+        if laser_id == self.get_current_laser():
+            return
+        self._switching = True
+        time.sleep(0.05)  # let lock loop disable PIDs
+        self._switcher.switch_to_laser(laser_id)
+        time.sleep(1.0)  # fixed sleep for servo movement
+        self._switching = False
 
     def close(self):
         """Stop loop, save PID output to file (for next launch), close wavemeter and DAC."""
@@ -219,6 +257,11 @@ class LaserLocker(QObject):
                 pass
         try:
             self._dac.close()
+        except Exception:
+            pass
+        try:
+            if self._switcher is not None:
+                self._switcher.close()
         except Exception:
             pass
         try:

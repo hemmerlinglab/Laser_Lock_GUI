@@ -2,11 +2,10 @@ import telnetlib
 import time
 
 class BI871:
-
-    '''
+    """
     Create connection, control, and read data from a
     Bristol Instruments 871 Wavelength Meter via Telnet.
-    '''
+    """
     # 1. Initialization --------------------------------------------------
     def __init__(self, HOST = "192.168.42.168", PORT = 23, timeout = 10):
 

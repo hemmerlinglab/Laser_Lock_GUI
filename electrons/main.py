@@ -1,5 +1,5 @@
 """
-Laser Lock entry point. Assembles: LaserLocker (wavemeter + PID + DAC), SetpointServer (remote queries),
+Laser Lock entry point. Assembles: LaserLocker (wavemeter + PID + DAC), LaserServer (remote queries),
 MainWindow (GUI). Run from electrons dir:  python main.py
 """
 
@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import QApplication
 from config import CONFIG
 from laser_locker import LaserLocker
 from main_window import MainWindow
-from setpoint_server import SetpointServer
+from laser_server import LaserServer
 
 
 def main():
@@ -24,7 +24,7 @@ def main():
     locker = LaserLocker(CONFIG)
 
     # initialize and run setpoint server
-    server = SetpointServer(
+    server = LaserServer(
         CONFIG["setpoint_server_ip"],
         CONFIG["setpoint_server_port"],
         locker,

@@ -5,6 +5,7 @@ Talks to LaserLocker: submit_setpoint() for user edits; listens to frequency_cha
 
 from functools import partial
 
+from PyQt5.QtCore import QTimer
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -12,6 +13,8 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QSpinBox,
     QLabel,
+    QPushButton,
+    QButtonGroup,
 )
 
 
@@ -29,6 +32,7 @@ class MainWindow(QWidget):
         self._last_step = {}    # laser_id -> int, for recovering invalid step input
         self._build_ui()
         self._connect_locker()
+        self._start_switcher_sync_timer()
 
     # 1) UI Layout
     # ========================================================
@@ -36,10 +40,11 @@ class MainWindow(QWidget):
         """
         Build UI (master layout).
         Master layout includes:
-        1. Frequency monitor:   Display current measured frequency for each laser (390 and 422 for now).
-        2. Laser control:       Display frequency offset, shift, step size, and setpoint for each laser.
+        1. Laser switcher:      Toggle to select which laser to switch to (one selected).
+        2. Frequency monitor:   Display current measured frequency for each laser (e.g. 390, 422).
+        3. Laser control:       Display frequency offset, shift, step size, and setpoint for each laser.
                                 User can edit frequency offset and shift to change setpoint.
-        3. PID monitor:         Display current PID output, proportional term, and integral term for each laser.
+        4. PID monitor:         Display current PID output, proportional term, and integral term for each laser.
         """
 
         # set window title and geometry
@@ -49,10 +54,63 @@ class MainWindow(QWidget):
 
         # define the master layout
         layout = QVBoxLayout()
+        layout.addLayout(self._build_laser_switcher())
         layout.addLayout(self._build_frequency_monitor())
         layout.addLayout(self._build_laser_control())
         layout.addLayout(self._build_pid_monitor())
         self.setLayout(layout)
+
+    def _build_laser_switcher(self):
+        """
+        Laser switcher: one toggle per laser, exclusive selection.
+        When selection changes, call locker.switch_laser(laser_id).
+        """
+        horizontal = QHBoxLayout()
+        horizontal.addWidget(QLabel("Laser:"))
+        self._switcher_group = QButtonGroup(self)
+        self._switcher_group.setExclusive(True)
+        self._switcher_buttons = {}
+        self._last_switched_laser = None
+        laser_ids = list(self._config["lasers"].keys())
+        for i, laser_id in enumerate(laser_ids):
+            btn = QPushButton(laser_id)
+            btn.setCheckable(True)
+            if i == 0:
+                btn.setChecked(True)
+                self._last_switched_laser = laser_id
+            self._switcher_group.addButton(btn)
+            self._switcher_buttons[btn] = laser_id
+            horizontal.addWidget(btn)
+        self._switcher_group.buttonClicked.connect(self._on_switcher_clicked)
+        horizontal.addStretch()
+        return horizontal
+
+    def _on_switcher_clicked(self, button):
+        laser_id = self._switcher_buttons.get(button)
+        if laser_id is None or laser_id == self._last_switched_laser:
+            return
+        self._locker.switch_laser(laser_id)
+        self._last_switched_laser = laser_id
+
+    def _start_switcher_sync_timer(self):
+        """Periodically sync laser switcher UI with wavemeter's current laser."""
+        def sync_from_wavemeter():
+            current = self._locker.get_current_laser()
+            if current is None or current == self._last_switched_laser:
+                return
+            if current not in self._switcher_buttons.values():
+                return
+            for btn, lid in self._switcher_buttons.items():
+                if lid == current:
+                    self._switcher_group.blockSignals(True)
+                    btn.setChecked(True)
+                    self._switcher_group.blockSignals(False)
+                    self._last_switched_laser = current
+                    break
+
+        self._switcher_sync_timer = QTimer(self)
+        self._switcher_sync_timer.timeout.connect(sync_from_wavemeter)
+        self._switcher_sync_timer.start(800)
 
     def _build_frequency_monitor(self):
         """
@@ -66,8 +124,7 @@ class MainWindow(QWidget):
         self._frequency_lines = {}
 
         # build the widgets for each laser
-        for laser in self._config["lasers"]:
-            laser_id = laser["id"]
+        for laser_id, laser in self._config["lasers"].items():
             line = QLineEdit("None")
             line.setReadOnly(True)
             self._frequency_lines[laser_id] = line
@@ -88,7 +145,7 @@ class MainWindow(QWidget):
         4. Frequency Set Point (THz):   (read-only) Current setpoint for the laser.
                                         Frequency Set Point reflects the current setpoint for the laser.
                                         This value is kept to be frequency offset + frequency shift
-                                        even when setpoint is changed by remote (e.g. setpoint_server.py).
+                                        even when setpoint is changed by remote (e.g. laser_server.py).
         """
 
         # basic layout of laser control UI
@@ -98,9 +155,7 @@ class MainWindow(QWidget):
         self._shift_spins = {}
 
         # build the widgets for each laser
-        for laser in self._config["lasers"]:
-            # get the laser id, initial frequency, and step size from the config
-            laser_id = laser["id"]
+        for laser_id, laser in self._config["lasers"].items():
             initial_frequency = laser["init_freq"]
             step_size = laser["step_size"]
 
@@ -170,8 +225,7 @@ class MainWindow(QWidget):
         self._pid_lines = {}
 
         # build the widgets for each laser
-        for laser_id, pid_config in self._config["pids"].items():
-            # build the components
+        for laser_id in self._config["lasers"]:
             self._pid_lines[laser_id] = {
                 "output": QLineEdit("None"),
                 "proportional_term": QLineEdit("None"),
@@ -180,16 +234,15 @@ class MainWindow(QWidget):
             for widget in self._pid_lines[laser_id].values():
                 widget.setReadOnly(True)
 
-            # arrange the layout
             horizontal = QHBoxLayout()
-            horizontal.addWidget(QLabel(f"{pid_config['laser']} Output:"))
+            horizontal.addWidget(QLabel(f"{laser_id} Output:"))
             horizontal.addWidget(self._pid_lines[laser_id]["output"])
             horizontal.addWidget(QLabel("P:"))
             horizontal.addWidget(self._pid_lines[laser_id]["proportional_term"])
             horizontal.addWidget(QLabel("I:"))
             horizontal.addWidget(self._pid_lines[laser_id]["integral_term"])
             vertical.addLayout(horizontal)
-            
+
         return vertical
 
     # 2) Internal Logics
@@ -294,7 +347,7 @@ class MainWindow(QWidget):
         offset_line.blockSignals(False)
 
     def closeEvent(self, event):
-        # Shutdown is handled by app.aboutToQuit in main.py; avoid double-close
+        # Shutdown handled by main.py shutdown(); no extra close here
         super().closeEvent(event)
 
 
