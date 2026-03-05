@@ -1,6 +1,6 @@
 """
 Arduino DAC control. PID output (-10~10) is sent to DAC → piezo/current modulation.
-Serial 7N1. Uses last saved output at startup to avoid frequency jump when relaunching.
+Serial 7O1, 9600. Protocol: $channel,value*checksum (NMEA-style, XOR checksum).
 """
 
 import serial
@@ -13,7 +13,7 @@ class ArduinoDAC:
     def __init__(self, com_ports, channel_config, initial_outputs=None):
         """
         com_ports:          {arduino_no: "COMx"} usually {0: "COM5"}.
-        channel_config:     per-laser DAC mapping (usually CONFIG["pids"]).
+        channel_config:     per-laser DAC mapping (usually CONFIG["lasers"]).
         initial_outputs:    {laser_id: float} last PID output from file; applied at startup to avoid
                             frequency jump (without this, DAC starts at mid-scale and laser jumps).
         """
@@ -40,18 +40,42 @@ class ArduinoDAC:
                 if laser_id in channel_config:
                     self.set_output(laser_id, value)
 
+    @staticmethod
+    def _checksum(payload):
+        """XOR of all bytes in payload (NMEA-style)."""
+        result = 0
+        for b in payload.encode("ascii"):
+            result ^= b
+        return result
+
+    @staticmethod
+    def _build_message(channel, raw_value):
+        """Build $channel,value*checksum message. Checksum = XOR of payload, 3 decimal digits (0-255)."""
+        payload = f"{channel},{raw_value}"
+        checksum = ArduinoDAC._checksum(payload)
+        return f"${payload}*{checksum:03d}\n"
+
+    def write(self, arduino_no, data):
+        """
+        Send raw data to the given Arduino. Simple passthrough for testing or custom protocol.
+        data: str or bytes; if str, encoded as ASCII.
+        """
+        if arduino_no not in self._serial_ports:
+            raise KeyError(f"arduino_no {arduino_no} not in {list(self._serial_ports.keys())}")
+        payload = data.encode("ascii") if isinstance(data, str) else data
+        self._serial_ports[arduino_no].write(payload)
+
     def set_output(self, laser_id, control_value):
         """Write PID output (-10~10) to DAC. control_value drives piezo/current for this laser."""
-        channel_params = self._channel_config[laser_id]
-        serial_port = self._serial_ports[channel_params["arduino_no"]]
-        dac_channel = channel_params["DAC_chan"]
-        max_output = channel_params["DAC_max_output"]
+        dac_params = self._channel_config[laser_id]["dac"]
+        arduino_no = dac_params["arduino_no"]
+        dac_channel = dac_params["DAC_chan"]
+        max_output = dac_params["DAC_max_output"]
 
-        # protocol: 5 digits, last digit = channel, rest = value (Arduino-side format)
-        # ugly protocol, maybe improve later
         raw_value = int(max_output / 20.0 * control_value + max_output / 2.0)
-        message = raw_value * 10 + dac_channel
-        serial_port.write(f"{message:05d}".encode())
+        raw_value = max(0, min(int(max_output), raw_value))
+        message = self._build_message(dac_channel, raw_value)
+        self.write(arduino_no, message)
 
     def close(self):
         """Close all serial ports."""
@@ -60,3 +84,11 @@ class ArduinoDAC:
                 serial_port.close()
             except Exception:
                 pass
+
+
+if __name__ == "__main__":
+    from config import CONFIG
+
+    dac = ArduinoDAC(CONFIG["arduino_com_ports"], {}, None)
+    dac.write(0, ArduinoDAC._build_message(1, 0))
+    dac.close()
