@@ -58,16 +58,16 @@ class LaserServer:
         while not self._stop_event.is_set():
             try:
                 connection, client_address = server_socket.accept()
-                connection.settimeout(1.0)
+                #connection.settimeout(1.0)
             except socket.timeout:
                 continue
             except OSError as error:
                 if self._stop_event.is_set():
                     break
-                print(f"[laser_server] accept() error: {error}")
+                print(f"[LaserServer] accept() error: {error}")
                 continue
 
-            print(f"[laser_server] connection from {client_address}")
+            print(f"[LaserServer] connection from {client_address}")
             self._active_connection = connection
 
             try:
@@ -80,14 +80,15 @@ class LaserServer:
                             message = line.rstrip("\r\n")
                             reply = self._process_message(message)
                             connection.sendall(reply)
-                        except socket.timeout:
-                            continue
+                        #except socket.timeout:
+                            #continue
                         except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
-                            print(f"[laser_server] client {client_address} disconnected")
+                            print(f"[LaserServer] client {client_address} disconnected")
                             break
                         except OSError as error:
-                            print(f"[laser_server] socket I/O error {error}")
+                            print(f"[LaserServer] socket I/O error {error}")
                             break
+
             finally:
                 try:
                     connection.close()
@@ -96,7 +97,7 @@ class LaserServer:
                 finally:
                     self._active_connection = None
 
-        print("[laser_server] laser server safely closed.")
+        print("[LaserServer] laser server safely closed.")
 
     def _process_message(self, message):
         """Handle one line: query freq/setpoint, submit setpoint, or switch laser. Reply "0" on failure."""
