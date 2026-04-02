@@ -9,7 +9,11 @@ char lineBuf[32];      // initialize the buffer for the incoming serial data
 void setup() {
   servo1.attach(9);    // attach servo motor 1 to the pin 9
   servo2.attach(10);   // attach servo motor 2 to the pin 10
-  Serial.begin(9600);  // start the serial communication at 9600 baud
+  Serial.begin(115200);  // start the serial communication at 9600 
+
+  // initial state: block both 390 and 422
+  servo1.write(0);
+  servo2.write(0);
 }
 
 // xorChecksum function: calculate the XOR checksum of a string

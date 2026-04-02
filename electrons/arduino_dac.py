@@ -24,12 +24,17 @@ class ArduinoDAC:
         for arduino_no, port in com_ports.items():
             serial_port = serial.Serial()
             serial_port.port = port
-            serial_port.baudrate = 9600
-            serial_port.bytesize = serial.SEVENBITS
-            serial_port.parity = serial.PARITY_ODD
+            serial_port.baudrate = 115200
+            serial_port.bytesize = serial.EIGHTBITS
+            serial_port.parity = serial.PARITY_NONE
             serial_port.stopbits = serial.STOPBITS_ONE
+            #serial_port.baudrate = 9600
+            #serial_port.bytesize = serial.SEVENBITS
+            #serial_port.parity = serial.PARITY_ODD
+            #serial_port.stopbits = serial.STOPBITS_ONE
             serial_port.timeout = 1
             serial_port.dtr = False  # avoid frequency jump at startup
+            serial_port.write_timeout = 0.5  # 加在 serial_port.open() 之前
             serial_port.open()
             self._serial_ports[arduino_no] = serial_port
 

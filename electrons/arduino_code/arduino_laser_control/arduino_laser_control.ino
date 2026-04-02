@@ -8,7 +8,7 @@ char lineBuf[32];   // initialize: buffer for incoming serial data
 // setup() function: initialize the serial port and the DAC
 void setup() {
   analogWriteResolution(12);       // set the resolution of the DAC to 12 bits
-  Serial.begin(9600);              // start the serial communication at 9600 baud
+  Serial.begin(115200);            // start the serial communication at 115200 baud
   pinMode(LED_BUILTIN, OUTPUT);    // set the LED pin as output
   digitalWrite(LED_BUILTIN, LOW);  // turn off the LED
 }
@@ -38,7 +38,7 @@ void processLine(const char* line) {
   if (payloadLen >= sizeof(lineBuf)) return;             // if the payload is too long, return
 
   // perform error checking
-  uint8_t expected = xorChecksum(line + 1, payloadLen);  // calculate the expected checksum
+  uint8_t expected = xorChecksum(line + 1, payloadLen);  // calculate the expected 
   unsigned int rx = 0;                                   // initialize the received checksum
   if (sscanf(star + 1, "%03u", &rx) != 1) return;        // if the checksum is not in the correct format, return
   if ((uint8_t)rx != expected) return;                   // if the checksum is not correct, return

@@ -141,7 +141,7 @@ class LaserLocker(QObject):
                 laser_id, frequency = item["laser_id"], item["frequency"]
                 if laser_id in setpoints:
                     setpoints[laser_id] = frequency
-                    print(f"[lock] New setpoint for {laser_id}: {frequency:.6f}")
+                    print(f"[LaserLocker] New setpoint for {laser_id}: {frequency:.6f}")
                     self.setpoint_changed.emit(laser_id, frequency)
             except queue.Empty:
                 pass
@@ -157,23 +157,29 @@ class LaserLocker(QObject):
                 # switching in progress or wavemeter saw no configured laser: disable all PIDs
                 for pid in self._pid_controllers.values():
                     pid.set_auto_mode(False)
+                last_laser_id = 0
             elif laser_id == last_laser_id:
                 self._run_single_pid_step(laser_id, setpoints, measured_frequency)
+                last_laser_id = laser_id
+
             else:
-                # switched to other laser; resume its PID from last output
                 if last_laser_id != 0:
                     self._pid_controllers[last_laser_id].set_auto_mode(False)
+                print(f"[LaserLocker] re-enabling {laser_id}, last_output={self._last_pid_output[laser_id]}")
                 self._pid_controllers[laser_id].set_auto_mode(
                     True, last_output=self._last_pid_output[laser_id]
                 )
                 self._run_single_pid_step(laser_id, setpoints, measured_frequency)
+                last_laser_id = laser_id
 
-            last_laser_id = laser_id
 
     def _run_single_pid_step(self, laser_id, setpoints, measured_frequency):
         """One PID step: (setpoint - measured) → PID → DAC. Emit signals for UI."""
         self._pid_controllers[laser_id].setpoint = float(setpoints[laser_id])
-        self._last_pid_output[laser_id] = self._pid_controllers[laser_id](measured_frequency)
+        output = self._pid_controllers[laser_id](measured_frequency)
+        if output is None:
+            return
+        self._last_pid_output[laser_id] = output
         proportional, integral, _ = self._pid_controllers[laser_id].components
         self._last_proportional_term[laser_id] = proportional
         self._last_integral_term[laser_id] = integral
@@ -189,6 +195,9 @@ class LaserLocker(QObject):
             return
 
         self._pid_controllers, self._setpoints = self._initialize_pid()
+        if self._switcher is not None:
+            self._switcher.switch_to_laser("422")
+
         for laser_id, setpoint in self._setpoints.items():
             self.setpoint_changed.emit(laser_id, setpoint)
 

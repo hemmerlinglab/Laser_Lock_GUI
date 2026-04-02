@@ -13,13 +13,14 @@ class ServoMotor:
     def __init__(self, com_port):
         self._port = serial.Serial()
         self._port.port = com_port
-        self._port.baudrate = 9600
-        self._port.bytesize = serial.SEVENBITS
-        self._port.parity = serial.PARITY_ODD
+        self._port.baudrate = 115200
+        self._port.bytesize = serial.EIGHTBITS
+        self._port.parity = serial.PARITY_NONE
         self._port.stopbits = serial.STOPBITS_ONE
         self._port.timeout = 1
         self._port.dtr = False
         self._port.open()
+        time.sleep(2.0)
 
     @staticmethod
     def _checksum(payload):
@@ -61,6 +62,7 @@ class LaserSwitcher(ServoMotor):
 
     def switch_to_laser(self, laser_id):
         """Switch to laser_id (e.g. '422', '390')."""
+        print(f"[LaserSwitcher] received query: {laser_id}")
         if laser_id not in self._lasers:
             return
         for channel, angle in self._lasers[laser_id]["servo"].items():

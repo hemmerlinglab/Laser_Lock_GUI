@@ -18,7 +18,7 @@ class BI871:
         self.tn = telnetlib.Telnet(self.host, self.port, timeout=self.timeout)
 
         # Attributes to deal with the crazy behavior of the wavemeter
-        self._modes = ["FETC", "READ", "MEAS"]
+        self._modes = ["MEAS", "READ", "FETC"]
         self._current_mode = 0
 
         # Clear welcome messages (if any)

@@ -23,7 +23,7 @@ CONFIG = {
             "freq_max": 710,
             "pid": {"Kp": 10, "Ki": 1200},
             "dac": {"arduino_no": 0, "DAC_chan": 1, "DAC_max_output": 4095.0},
-            "servo": {1: 0, 2: 90},
+            "servo": {1: 90, 2: 0},
         },
         "390": {
             "init_freq": "766.817850",
@@ -32,12 +32,12 @@ CONFIG = {
             "freq_max": 770,
             "pid": {"Kp": -10, "Ki": -3000},
             "dac": {"arduino_no": 0, "DAC_chan": 2, "DAC_max_output": 3250.0},
-            "servo": {1: 90, 2: 0},
+            "servo": {1: 0, 2: 90},
         },
     },
 
     # Servo motor com port for fiber switching (controlled_servo.ino).
-    "servo_com_port": "COM6",
+    "servo_com_port": "COM8",
 
     # Save PID output here on exit; loaded at startup to avoid frequency jump when re-launching.
     "last_pid_status": "laserlock_last_pid_state.json",
