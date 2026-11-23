@@ -58,6 +58,7 @@ class LaserServer:
         while not self._stop_event.is_set():
             try:
                 connection, client_address = server_socket.accept()
+                # Do not set time out, otherwise, the communication pipe will break!
                 #connection.settimeout(1.0)
             except socket.timeout:
                 continue

@@ -7,7 +7,7 @@ CONFIG = {
     "arduino_com_ports": {0: "COM5"},
 
     # Bristol 871 wavemeter (Telnet). Read frequency here to know which laser is locked.
-    "wavemeter_ip": "192.168.42.168",
+    "wavemeter_ip": "192.168.42.21",
     "wavemeter_port": 23,
 
     # TCP server for remote setpoint queries/updates (e.g. from another PC in the lab).

@@ -7,7 +7,7 @@ class BI871:
     Bristol Instruments 871 Wavelength Meter via Telnet.
     """
     # 1. Initialization --------------------------------------------------
-    def __init__(self, HOST = "192.168.42.168", PORT = 23, timeout = 10):
+    def __init__(self, HOST = "192.168.42.21", PORT = 23, timeout = 10):
 
         # Record host and port
         self.host = HOST
